@@ -15,7 +15,7 @@ import db
 
 ball = Flask(__name__)
 
-@ball.route ('/')
+@ball.route('/')
 def index():
   conn, cur = db.mysql_init()
   user_id = check_auth(request)
@@ -286,4 +286,4 @@ def auth_vk_step2():
 
 if __name__ == '__main__':
   ball.debug = False
-  ball.run (host = '127.0.0.1', port = 5200)
+  ball.run(host=config.config['host'], config.config['port'])
