@@ -285,5 +285,6 @@ def auth_vk_step2():
   return resp
 
 if __name__ == '__main__':
-  ball.debug = False
-  ball.run(host=config.config['host'], config.config['port'])
+  webc = config.config['web']
+  ball.debug = webc['debug']
+  ball.run(host=webc['host'], port=webc['port'])

@@ -7,6 +7,5 @@ allowed_users = ['vk:12345']
 
 config = {
   'db': { 'host': '127.0.0.1', 'user': 'ball', 'db': 'ball', 'passwd': 'password' },
-  'host': '127.0.0.1',
-  'port': 5100
+  'web': { 'host': '127.0.0.1', 'port': 5100, 'debug': False }
 }
