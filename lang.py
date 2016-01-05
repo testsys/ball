@@ -1,4 +1,4 @@
-lang = {
+lang_ru = {
     'index_title': 'Шарики',
     'index_no_events': 'Нет соревнований',
     'index_not_authorised': 'Вы не авторизованы.',
@@ -26,3 +26,4 @@ lang = {
     '': ''
 }
 
+lang = lang_ru
