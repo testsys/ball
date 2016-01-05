@@ -77,34 +77,6 @@ def get_state_str_queue(event_id, b):
         state_str += ' (' + str(b['volunteer_id']) + ')'
     return state_str
 
-def get_balloons_html(event_id, problems, problems_map, teams, teams_map, first_to_solve, first_solved, cur, header, get_state_str):
-    balloons = []
-    for row in cur.fetchall():
-        b = { 'id': row[0], 'problem_id': row[1], 'team_id': row[2], 'volunteer_id': row[3], 'state': int(row[4]) }
-        balloons.append(b)
-    if len(balloons) == 0:
-        return ''
-    balloons_html = '<h2>' + header + '</h2>\n'
-    balloons_html += '<table style="width: 100%;">\n'
-    for b in balloons:
-        p = problems[problems_map[b['problem_id']]]
-        t = teams[teams_map[b['team_id']]]
-        state_str = get_state_str(event_id, b)
-        balloons_html += '<tr style="padding: 10px;">'
-        balloons_html += '<td style="background-color: ' + p['color'] + '; width: 20px; border-style: solid; border-width: 1px;">&nbsp;</td>'
-        x = ''
-        if first_to_solve[b['problem_id']] == b['id']:
-            x = '<b>' + lang.lang['event_queue_first_to_solve'] + '</b>'
-        balloons_html += '<td>' + x + lang.lang['event_queue_problem'] + ' <b>' + p['letter'] + '</b></td>'
-        x = ''
-        if b['team_id'] in first_solved and first_solved[b['team_id']] == b['id']:
-            x = '<b>' + lang.lang['event_queue_first_solved'] + '</b>'
-        balloons_html += '<td>' + x + lang.lang['event_queue_team'] + ' <b>' + t['name'] + '</b>: ' + cgi.escape(t['long_name']) + '</td>'
-        balloons_html += '<td>' + state_str + '</td>'
-        balloons_html += '<tr>\n'
-    balloons_html += '</table>\n'
-    return balloons_html
-
 @ball.route('/event<int:event_id>')
 def event(event_id):
     user_id = check_auth(request)
@@ -163,14 +135,44 @@ def event(event_id):
         for row in cur.fetchall():
             first_solved[t['id']] = row[0]
 
-    cur.execute('select id, problem_id, team_id, volunteer_id, state from balloons where event_id=%s and state>=100 and state<200 and volunteer_id=%s order by state, id desc', [event_id, user_id])
-    content += get_balloons_html(event_id, problems, problems_map, teams, teams_map, first_to_solve, first_solved, cur, lang.lang['event_header_your_queue'], get_state_str_current)
+    def get_balloons_html(header, get_state_str):
+        balloons = []
+        for row in cur.fetchall():
+            b = { 'id': row[0], 'problem_id': row[1], 'team_id': row[2], 'volunteer_id': row[3], 'state': int(row[4]) }
+            balloons.append(b)
+        if len(balloons) == 0:
+            return ''
+        balloons_html = '<h2>' + header + '</h2>\n'
+        balloons_html += '<table style="width: 100%;">\n'
+        for b in balloons:
+            p = problems[problems_map[b['problem_id']]]
+            t = teams[teams_map[b['team_id']]]
+            state_str = get_state_str(event_id, b)
+            balloons_html += '<tr style="padding: 10px;">'
+            balloons_html += '<td style="background-color: ' + p['color'] + '; width: 20px; border-style: solid; border-width: 1px;">&nbsp;</td>'
+            x = ''
+            if first_to_solve[b['problem_id']] == b['id']:
+                x = '<b>' + lang.lang['event_queue_first_to_solve'] + '</b>'
+            balloons_html += '<td>' + x + lang.lang['event_queue_problem'] + ' <b>' + p['letter'] + '</b></td>'
+            x = ''
+            if b['team_id'] in first_solved and first_solved[b['team_id']] == b['id']:
+                x = '<b>' + lang.lang['event_queue_first_solved'] + '</b>'
+            balloons_html += '<td>' + x + lang.lang['event_queue_team'] + ' <b>' + t['name'] + '</b>: ' + cgi.escape(t['long_name']) + '</td>'
+            balloons_html += '<td>' + state_str + '</td>'
+            balloons_html += '<tr>\n'
+        balloons_html += '</table>\n'
+        return balloons_html
 
-    cur.execute('select id, problem_id, team_id, volunteer_id, state from balloons where event_id=%s and state<100 order by state, id desc', [event_id])
-    content += get_balloons_html(event_id, problems, problems_map, teams, teams_map, first_to_solve, first_solved, cur, lang.lang['event_header_offer'], get_state_str_queue)
+    fields = ', '.join(['id', 'problem_id', 'team_id', 'volunteer_id', 'state'])
 
-    cur.execute('select id, problem_id, team_id, volunteer_id, state from balloons where event_id=%s and state>=100 order by state, id desc', [event_id])
-    content += get_balloons_html(event_id, problems, problems_map, teams, teams_map, first_to_solve, first_solved, cur, lang.lang['event_header_queue'], get_state_str_queue)
+    cur.execute('select ' + fields + ' from balloons where event_id=%s and state>=100 and state<200 and volunteer_id=%s order by state, id desc', [event_id, user_id])
+    content += get_balloons_html(lang.lang['event_header_your_queue'], get_state_str_current)
+
+    cur.execute('select ' + fields + ' from balloons where event_id=%s and state<100 order by state, id desc', [event_id])
+    content += get_balloons_html(lang.lang['event_header_offer'], get_state_str_queue)
+
+    cur.execute('select ' + fields + ' from balloons where event_id=%s and state>=100 order by state, id desc', [event_id])
+    content += get_balloons_html(lang.lang['event_header_queue'], get_state_str_queue)
 
     db.mysql_close(conn, cur)
     return render_template('template.html', title = event['name'], content = content)
