@@ -241,13 +241,6 @@ def do_set_color():
     db.mysql_close(conn, cur)
     return redirect(config.base_url + '/problem' + str(problem_id))
 
-@ball.route('/auth')
-def auth():
-    return redirect( \
-        'https://oauth.vk.com/authorize?client_id=' + \
-        config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
-        config.base_url + '/auth_vk_step2')
-
 def create_auth_token(user_id):
     day = int(time.time() / (24 * 60 * 60))
     return hashlib.md5((str(user_id) + ':' + str(day) + ':' + config.auth_salt).encode()).hexdigest()
@@ -261,6 +254,20 @@ def check_auth(request):
     if auth_token != create_auth_token(user_id):
         return None
     return user_id
+
+@ball.route('/auth')
+def auth():
+    return redirect( \
+        'https://oauth.vk.com/authorize?client_id=' + \
+        config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
+        config.base_url + '/auth_vk_step2')
+
+@ball.route('/auth_vk')
+def auth():
+    return redirect( \
+        'https://oauth.vk.com/authorize?client_id=' + \
+        config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
+        config.base_url + '/auth_vk_step2')
 
 @ball.route('/auth_vk_step2')
 def auth_vk_step2():
@@ -280,6 +287,42 @@ def auth_vk_step2():
     user_id = 'vk:' + str(res['user_id'])
     auth_token = create_auth_token(user_id)
     resp = make_response(redirect(config.base_url))
+    resp.set_cookie('ball_auth_token', auth_token)
+    resp.set_cookie('ball_user_id', user_id)
+    return resp
+
+@ball.route('/auth_google_start')
+def auth_google_start():
+    return redirect( \
+        'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + \
+        google_client_id + '&response_type=code&scope=https://www.googleapis.com/auth/plus.login&redirect_uri=' + \
+        config.base_url + '/google_done')
+
+@ball.route('/auth_google_done')
+def auth_google_done():
+    try:
+        code = request.args.get('code', '')
+    except:
+        code = 'None'
+    google_oauth_base = 'https://www.googleapis.com/oauth2/v4/token'
+    google_oauth_data = \
+        urllib.parse.urlencode(
+            {'client_id': config.google_client_id, 'client_secret': config.google_client_secret, 'redirect_uri': config.base_url + '/google_done', 'code': code, 'grant_type': 'authorization_code'}
+        )
+    res = json.loads(urllib.request.urlopen(google_oauth_base, google_oauth_data.encode('utf-8')).read().decode())
+    if 'error' in res:
+        error_content = 'Failed auth: ' + str(res['error_description'])
+        return render_template('template.html', title='Failed auth', content=error_content)
+    access_token = res['access_token']
+    google_login_base = 'https://www.googleapis.com/plus/v1/people/me'
+    google_login_data = \
+        urllib.parse.urlencode(
+            {'access_token': access_token}
+        )
+    res = json.loads(urllib.request.urlopen(google_login_base + '?' + google_login_data).read().decode())
+    user_id = 'google:' + str(res['id'])
+    auth_token = create_auth_token(user_id)
+    resp = make_response(redirect(base_url))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
     return resp
