@@ -258,19 +258,19 @@ def check_auth(request):
 @ball.route('/auth')
 def auth():
     content = ''
-    content += '<div><a href="' + config.base_url + '/auth_vk">VK</a></div>'
-    content += '<div><a href="' + config.base_url + '/auth_google_start">Google</a></div>'
+    content += '<div><a href="' + config.base_url + '/auth/vk/start">VK</a></div>'
+    content += '<div><a href="' + config.base_url + '/auth/google/start">Google</a></div>'
     return render_template('template.html', title=lang.lang['auth'], content=content)
 
-@ball.route('/auth_vk')
-def auth_vk():
+@ball.route('/auth/vk/start')
+def auth_vk_start():
     return redirect( \
         'https://oauth.vk.com/authorize?client_id=' + \
         config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
-        config.base_url + '/auth_vk_step2')
+        config.base_url + '/auth/vk/done')
 
-@ball.route('/auth_vk_step2')
-def auth_vk_step2():
+@ball.route('/auth/vk/done')
+def auth_vk_done():
     try:
         code = request.args.get('code', '')
     except:
@@ -278,7 +278,7 @@ def auth_vk_step2():
     vk_oauth_url = \
         'https://oauth.vk.com/access_token?client_id=' + \
         config.vk_app_id + '&client_secret=' + config.vk_client_secret + \
-        '&redirect_uri=' + config.base_url + '/auth_vk_step2&code=' + \
+        '&redirect_uri=' + config.base_url + '/auth/vk/done&code=' + \
         code
     res = json.loads(urllib.request.urlopen(vk_oauth_url).read().decode())
     if 'error' in res:
@@ -291,14 +291,14 @@ def auth_vk_step2():
     resp.set_cookie('ball_user_id', user_id)
     return resp
 
-@ball.route('/auth_google_start')
+@ball.route('/auth/google/start')
 def auth_google_start():
     return redirect( \
         'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + \
         config.google_client_id + '&response_type=code&scope=https://www.googleapis.com/auth/plus.login&redirect_uri=' + \
-        config.base_url + '/google_done')
+        config.base_url + '/auth/google/done')
 
-@ball.route('/auth_google_done')
+@ball.route('/auth/google/done')
 def auth_google_done():
     try:
         code = request.args.get('code', '')
@@ -307,7 +307,7 @@ def auth_google_done():
     google_oauth_base = 'https://www.googleapis.com/oauth2/v4/token'
     google_oauth_data = \
         urllib.parse.urlencode(
-            {'client_id': config.google_client_id, 'client_secret': config.google_client_secret, 'redirect_uri': config.base_url + '/google_done', 'code': code, 'grant_type': 'authorization_code'}
+            {'client_id': config.google_client_id, 'client_secret': config.google_client_secret, 'redirect_uri': config.base_url + '/auth/google/done', 'code': code, 'grant_type': 'authorization_code'}
         )
     res = json.loads(urllib.request.urlopen(google_oauth_base, google_oauth_data.encode('utf-8')).read().decode())
     if 'error' in res:
