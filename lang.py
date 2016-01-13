@@ -23,6 +23,8 @@ lang_ru = {
     'balloon_state_carrying': 'Несут',
     'balloon_state_delivered': 'Доставлен',
 
+    'auth': 'Авторизация',
+
     '': ''
 }
 

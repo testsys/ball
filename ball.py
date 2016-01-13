@@ -257,13 +257,13 @@ def check_auth(request):
 
 @ball.route('/auth')
 def auth():
-    return redirect( \
-        'https://oauth.vk.com/authorize?client_id=' + \
-        config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
-        config.base_url + '/auth_vk_step2')
+    content = ''
+    content += '<div><a href="' + config.base_url + '/auth_vk">VK</a></div>'
+    content += '<div><a href="' + config.base_url + '/auth_google_start">Google</a></div>'
+    return render_template('template.html', title=lang.lang['auth'], content=content)
 
 @ball.route('/auth_vk')
-def auth():
+def auth_vk():
     return redirect( \
         'https://oauth.vk.com/authorize?client_id=' + \
         config.vk_app_id + '&display=page&response_type=code&redirect_uri=' + \
