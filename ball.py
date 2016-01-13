@@ -322,7 +322,7 @@ def auth_google_done():
     res = json.loads(urllib.request.urlopen(google_login_base + '?' + google_login_data).read().decode())
     user_id = 'google:' + str(res['id'])
     auth_token = create_auth_token(user_id)
-    resp = make_response(redirect(base_url))
+    resp = make_response(redirect(config.base_url))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
     return resp
