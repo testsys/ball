@@ -295,7 +295,7 @@ def auth_vk_step2():
 def auth_google_start():
     return redirect( \
         'https://accounts.google.com/o/oauth2/v2/auth?client_id=' + \
-        google_client_id + '&response_type=code&scope=https://www.googleapis.com/auth/plus.login&redirect_uri=' + \
+        config.google_client_id + '&response_type=code&scope=https://www.googleapis.com/auth/plus.login&redirect_uri=' + \
         config.base_url + '/google_done')
 
 @ball.route('/auth_google_done')
