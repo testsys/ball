@@ -41,7 +41,7 @@ def problem(problem_id):
     conn, cur = db.mysql_init()
     problem_id = int(problem_id)
     content = ''
-    colors = ['#f9ff0f', '#000000', '#f6ab23', '#cc0000', '#03C03C', '#e1379e', '#9e37e1', '#2FACAC', '#0047AB']
+    colors = ['#f9ff0f', '#000000', '#f6ab23', '#cc0000', '#03C03C', '#e1379e', '#9e37e1', '#2FACAC', '#0047AB', '#FFFFF']
     problems = []
     cur.execute('select id, letter, color from problems where id=%s', [problem_id])
     for row in cur.fetchall():
@@ -149,7 +149,10 @@ def event(event_id):
             t = teams[teams_map[b['team_id']]]
             state_str = get_state_str(event_id, b)
             balloons_html += '<tr style="padding: 10px;">'
-            balloons_html += '<td style="background-color: ' + p['color'] + '; width: 20px; border-style: solid; border-width: 1px;">&nbsp;</td>'
+            balloons_text = '&nbsp;'
+            if not p['color']:
+                balloons_text = '?'
+            balloons_html += '<td style="background-color: ' + p['color'] + '; width: 20px; border-style: solid; border-width: 1px;">' + balloons_text + '</td>'
             x = ''
             if first_to_solve[b['problem_id']] == b['id']:
                 x = '<b>' + lang.lang['event_queue_first_to_solve'] + '</b>'
