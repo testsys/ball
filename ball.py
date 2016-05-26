@@ -43,11 +43,11 @@ def problem(problem_id):
     content = ''
     colors = ['#f9ff0f', '#000000', '#f6ab23', '#cc0000', '#03C03C', '#e1379e', '#9e37e1', '#2FACAC', '#0047AB', '#FFFFF']
     problems = []
-    cur.execute('select id, letter, color from problems where id=%s', [problem_id])
+    cur.execute('select id, letter, color, name from problems where id=%s', [problem_id])
     for row in cur.fetchall():
-        p = { 'id': row[0], 'letter': row[1], 'color': row[2] }
+        p = { 'id': row[0], 'letter': row[1], 'color': row[2], 'name': row[3] }
         problems.append(p)
-    problems_html = '<h2>' + problems[0]['letter'] + '</h2>\n'
+    problems_html = '<h2>' + problems[0]['letter'] + ': ' + problems[0]['name'] + '</h2>\n'
     content += problems_html
     colors_html = ''
     colors_html += '<div><span style="color:' + problems[0]['color'] + '">' + lang.lang['problem_cur_color'] + ' <b>' + problems[0]['color'] + '</b>' + '</span></div>'
