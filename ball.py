@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from flask import Flask, url_for, render_template, request, make_response, redirect
 import cgi
 import hashlib
@@ -16,7 +18,7 @@ ball = Flask(__name__)
 @ball.route('/')
 def index():
     conn, cur = db.mysql_init()
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     content = ''
     events = []
     cur.execute('select id, name, state from events')
@@ -25,17 +27,13 @@ def index():
     if len(events) == 0:
         content = lang.lang['index_no_events']
     for e in events:
-        content += '<div><a href="event' + str(e[0]) + '">' + cgi.escape(e[1]) + '</a></div>'
-    if user_id == None:
-        content += '<div>' + lang.lang['index_not_authorised'] + ' <a href="/ball/auth">' + lang.lang['index_log_in'] + '</a></div>'
-    else:
-        content += '<div><b>' + str(user_id) + '</b></div>'
+        content += '<div><a href="event' + str(e[0]) + '">' + cgi.escape(e[1]) + '</a></div>\n'
     db.mysql_close(conn, cur)
-    return render_template('template.html', title=lang.lang['index_title'], content=content)
+    return render_template('template.html', title=lang.lang['index_title'], auth=auth_html, content=content)
 
 @ball.route('/problem<int:problem_id>')
 def problem(problem_id):
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -55,7 +53,7 @@ def problem(problem_id):
         colors_html += '<div><a href="/ball/do_set_color?problem=' + str(problem_id) + '&color=' + urllib.parse.quote(c) + '"><span style="color:' + c + '">' + lang.lang['problem_set_color'] + ' <b>' + c + '</b>' + '</span></a></div>'
     content += colors_html
     db.mysql_close(conn, cur)
-    return render_template('template.html', title=problems[0]['letter'], content=content)
+    return render_template('template.html', title=problems[0]['letter'], auth=auth_html, content=content)
 
 def get_state_str_current(event_id, b):
     state_str = ''
@@ -79,7 +77,7 @@ def get_state_str_queue(event_id, b):
 
 @ball.route('/event<int:event_id>')
 def event(event_id):
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -182,7 +180,7 @@ def event(event_id):
 
 @ball.route('/do_take')
 def do_take():
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -198,7 +196,7 @@ def do_take():
 
 @ball.route('/do_done')
 def do_done():
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -214,7 +212,7 @@ def do_done():
 
 @ball.route('/do_drop')
 def do_drop():
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -230,7 +228,7 @@ def do_drop():
 
 @ball.route('/do_set_color')
 def do_set_color():
-    user_id = check_auth(request)
+    user_id, auth_html = check_auth(request)
     if not user_id in config.allowed_users:
         return redirect(config.base_url)
     conn, cur = db.mysql_init()
@@ -249,21 +247,23 @@ def create_auth_token(user_id):
     return hashlib.md5((str(user_id) + ':' + str(day) + ':' + config.auth_salt).encode()).hexdigest()
 
 def check_auth(request):
+    auth_html = '<div>' + lang.lang['index_not_authorised'] + ' <a href="/ball/auth">' + lang.lang['index_log_in'] + '</a></div>\n'
     try:
         user_id = request.cookies.get('ball_user_id')
         auth_token = request.cookies.get('ball_auth_token')
     except:
-        return None
+        return None, auth_html
     if auth_token != create_auth_token(user_id):
-        return None
-    return user_id
+        return None, auth_html
+    auth_html = '<div><b>' + str(user_id) + '</b></div>\n'
+    return user_id, auth_html
 
 @ball.route('/auth')
 def auth():
     content = ''
     content += '<div><a href="' + config.base_url + '/auth/vk/start">VK</a></div>'
     content += '<div><a href="' + config.base_url + '/auth/google/start">Google</a></div>'
-    return render_template('template.html', title=lang.lang['auth'], content=content)
+    return render_template('template.html', title=lang.lang['auth'], auth=auth_html, content=content)
 
 @ball.route('/auth/vk/start')
 def auth_vk_start():
