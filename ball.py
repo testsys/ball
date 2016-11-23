@@ -28,8 +28,29 @@ def index():
         content = lang.lang['index_no_events']
     for e in events:
         content += '<div><a href="event' + str(e[0]) + '">' + cgi.escape(e[1]) + '</a></div>\n'
+    if user_id != None:
+        content += \
+            '<div><form action="do_add_event" method="POST">' + \
+            '<input type="text" placeholder="' + lang.lang['index_monitor_url'] + '" name="url" />' + \
+            '<input type="submit" value="' + lang.lang['index_add_event'] + '" />' + \
+            '</form></div>\n'
     db.mysql_close(conn, cur)
     return render_template('template.html', title=lang.lang['index_title'], auth=auth_html, content=content)
+
+@ball.route('/do_add_event', methods=['POST'])
+def do_add_event():
+    conn, cur = db.mysql_init()
+    user_id, auth_html = check_auth(request)
+    if not user_id in config.allowed_users:
+        return redirect(config.base_url)
+    try:
+        event_url = request.form['url']
+    except:
+        return redirect(config.base_url)
+    cur.execute('insert into events (state, url) values (%s, %s)', [1, event_url])
+    conn.commit()
+    db.mysql_close(conn, cur)
+    return redirect(config.base_url)
 
 @ball.route('/problem<int:problem_id>')
 def problem(problem_id):
@@ -260,6 +281,7 @@ def check_auth(request):
 
 @ball.route('/auth')
 def auth():
+    user_id, auth_html = check_auth(request)
     content = ''
     content += '<div><a href="' + config.base_url + '/auth/vk/start">VK</a></div>'
     content += '<div><a href="' + config.base_url + '/auth/google/start">Google</a></div>'

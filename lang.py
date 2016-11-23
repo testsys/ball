@@ -3,6 +3,8 @@ lang_ru = {
     'index_no_events': 'Нет соревнований',
     'index_not_authorised': 'Вы не авторизованы.',
     'index_log_in': 'Войти',
+    'index_monitor_url': 'URL монитора',
+    'index_add_event': 'Добавить соревнование',
 
     'event_header_problems': 'Задачи',
     'event_header_queue': 'Очередь',
