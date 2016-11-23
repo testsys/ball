@@ -18,7 +18,7 @@ lang_ru = {
     'event_queue_drop': 'Отказаться',
     'event_queue_first_to_solve': '1OK ',
     'event_queue_first_solved': '1OK ',
-    
+
     'problem_cur_color': 'Цвет сейчас',
     'problem_set_color': 'Установить цвет',
 
