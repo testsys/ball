@@ -105,10 +105,13 @@ def event(event_id):
     event_id = int(event_id)
     content = ''
     events = []
-    cur.execute('select id, name, state from events where id=%s', [event_id])
+    cur.execute('select id, name, state, url from events where id=%s', [event_id])
     for row in cur.fetchall():
         e = row
-    event = { 'name': e[1], 'state': e[2] }
+    event = { 'name': e[1], 'state': e[2], 'url': e[3] }
+    event_html = ''
+    event_html += '<div><a href="' + cgi.escape(event['url']) + '">' + lang.lang['event_header_monitor_link'] + '</a></div>\n'
+    content += event_html
 
     problems = []
     problems_map = {}

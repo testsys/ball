@@ -10,6 +10,7 @@ lang_ru = {
     'event_header_queue': 'Очередь',
     'event_header_your_queue': 'Вы несете',
     'event_header_offer': 'Предлагаем отнести',
+    'event_header_monitor_link': 'Монитор соревнования',
     'event_queue_problem': 'Задача',
     'event_queue_team': 'Команда',
     'event_queue_take': 'Отнесу',
