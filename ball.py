@@ -201,12 +201,11 @@ def event(event_id):
         if p['color'] == '':
             text = '?'
         problems_html += (
-            '<td style="height: 50px; width: 25px; text-align: center; ' +
-            'background-color: ' + p['color'] + '; border-style: solid; ' +
-            'border-width: 1px;">' + text + '</td>')
+            '<td class="balloons_problem_color" style="' +
+            'background-color: ' + p['color'] + ';">' +
+            text + '</td>')
         problems_html += (
-            '<td style="height: 50px; width: 50px; text-align: left; ' +
-            'font-weight: bold;">' +
+            '<td class="balloons_problem_letter">' +
             '<a href="/ball/problem' + str(p['id']) + '">' +
             p['letter'] + '</a>' +
             '(' + str(p['cnt']) + ')' + '</td>')
@@ -265,13 +264,13 @@ def event(event_id):
             p = problems[problems_map[b['problem_id']]]
             t = teams[teams_map[b['team_id']]]
             state_str = get_state_str(event_id, b)
-            balloons_html += '<tr style="padding: 10px;">'
+            balloons_html += '<tr class="balloons_row">'
             balloons_text = '&nbsp;'
             if not p['color']:
                 balloons_text = '?'
             balloons_html += (
-                '<td style="background-color: ' + p['color'] +
-                '; width: 20px; border-style: solid; border-width: 1px;">' +
+                '<td class="balloons_balloon_color"' +
+                ' style="background-color: ' + p['color'] + '">' +
                 balloons_text + '</td>')
             x = ''
             if first_to_solve[b['problem_id']] == b['id']:

@@ -34,3 +34,26 @@ div.footer {
   margin-top: 30px;
   text-align: right;
 }
+
+td.balloons_problem_color {
+  height: 50px;
+  width: 25px;
+  text-align: center;
+  border-style: solid;
+  border-width: 1px;
+}
+td.balloons_problem_letter {
+  height: 50px;
+  width: 50px;
+  text-align: left;
+  font-weight: bold;
+}
+td.balloons_balloon_color {
+  width: 20px;
+  border-style: solid;
+  border-width: 1px;
+}
+
+tr.balloons_row {
+  padding: 10px;
+}
