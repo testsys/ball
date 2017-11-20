@@ -15,7 +15,39 @@ events = []
 for row in cur.fetchall():
     events.append(list(row))
 
+team_cache = {}
+problem_cache = {}
+balloon_cache = {}
+
+def team_load(event_id, team_name):
+    global team_cache, cur
+    if (event_id, team_name) not in team_cache:
+        cur.execute(
+            'select id from teams where event_id=%s and name=%s',
+            [event_id, team_name])
+        for row in cur.fetchall():
+            team_cache[(event_id, team_name)] = row[0]
+    return team_cache[(event_id, team_name)]
+
+def problem_load(event_id, problem_letter):
+    global problem_cache, cur
+    if (event_id, problem_letter) not in problem_cache:
+        cur.execute(
+            'select id from problems where event_id=%s and letter=%s',
+            [event_id, problem_letter])
+        for row in cur.fetchall():
+            problem_cache[(event_id, problem_letter)] = row[0]
+    return problem_cache[(event_id, problem_letter)]
+
 for event_id, event_url, event_name in events:
+    cur.execute(
+        'select id, problem_id, team_id from balloons' +
+        ' where event_id=%s',
+        [event_id])
+    for row in cur.fetchall():
+        balloon_id, problem_id, team_id = row
+        balloon_cache[(event_id, problem_id, team_id)] = balloon_id
+    haved_balloons = 0
     contest_dat = urllib.request.urlopen(event_url).read()
     for line in contest_dat.split(b'\r\n'):
         if len(line) < 1 or line[0] != 64:
@@ -35,28 +67,22 @@ for event_id, event_url, event_name in events:
             if outcome != 'OK':
                 continue
             team_name, problem_letter = data[0], data[1]
-            cur.execute(
-                'select id from teams where event_id=%s and name=%s',
-                [event_id, team_name])
-            team_id = None
-            for row in cur.fetchall():
-                team_id = row[0]
-            cur.execute(
-                'select id from problems where event_id=%s and letter=%s',
-                [event_id, problem_letter])
-            problem_id = None
-            for row in cur.fetchall():
-                problem_id = row[0]
-            balloon_id = None
-            cur.execute(
-                'select id from balloons' +
-                ' where event_id=%s and problem_id=%s and team_id=%s',
-                [event_id, problem_id, team_id])
-            for row in cur.fetchall():
-                balloon_id = row[0]
-            if balloon_id:
-                print('have balloon: ' + str(balloon_id))
+            team_id = team_load (event_id, team_name)
+            problem_id = problem_load (event_id, problem_letter)
+            if (event_id, problem_id, team_id) in balloon_cache:
+                haved_balloons += 1
                 continue
+            #  no need: all old balloons are preloaded
+            # cur.execute(
+            #     'select id from balloons' +
+            #     ' where event_id=%s and problem_id=%s and team_id=%s',
+            #     [event_id, problem_id, team_id])
+            # for row in cur.fetchall():
+            #     balloon_cache[event_id, problem_id, team_id] = row[0]
+            # balloon_id = balloon_cache[event_id, problem_id, team_id]
+            # if balloon_id is not None:
+            #     print('have wtf balloon: ' + str(balloon_id))
+            #     continue
             cur.execute(
                 'insert into balloons' +
                 '(event_id, problem_id, team_id, state, time_created)' +
@@ -76,11 +102,13 @@ for event_id, event_url, event_name in events:
                     'insert into teams(event_id, name, long_name)' +
                     ' values (%s, %s, %s)',
                     [event_id, team_name, team_long_name])
+                team_id = cur.lastrowid
             else:
                 if team_long_name != old_team_long_name:
                     cur.execute(
                         'update teams set long_name=%s where id=%s',
                         [team_long_name, team_id])
+            team_cache[(event_id, team_name)] = team_id
         elif mode == '@p':
             problem_letter, problem_name = data[0], data[1]
             cur.execute(
@@ -95,11 +123,13 @@ for event_id, event_url, event_name in events:
                     'insert into problems(event_id, letter, name)' +
                     ' values (%s, %s, %s)',
                     [event_id, problem_letter, problem_name])
+                problem_id = cur.lastrowid
             else:
                 if problem_name != old_problem_name:
                     cur.execute(
                         'update problems set name=%s where id=%s',
                         [problem_name, problem_id])
+            problem_cache[(event_id, problem_letter)] = problem_id
         elif mode == '@contest':
             name = data[0]
             if event_name != name:
@@ -107,6 +137,8 @@ for event_id, event_url, event_name in events:
                 cur.execute(
                     'update events set name=%s where id=%s',
                     [name, event_id])
+                event_name = name
+    print('[%s] have cached balloons: %d' % (event_name, haved_balloons))
 
 conn.commit()
 db.mysql_close(conn, cur)

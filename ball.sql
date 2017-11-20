@@ -16,11 +16,11 @@ CREATE TABLE `balloons` (
   `event_id` int(11) NOT NULL,
   `team_id` int(11) NOT NULL,
   `problem_id` int(11) NOT NULL,
-  `volunteer_id` varchar(255) COLLATE utf8_bin NOT NULL,
-  `state` int(11) NOT NULL,
+  `volunteer_id` varchar(255) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `state` int(11) NOT NULL DEFAULT 0,
   `time_created` int(11) NOT NULL,
-  `time_taken` int(11) NOT NULL,
-  `time_delivered` int(11) NOT NULL,
+  `time_taken` int(11) NOT NULL DEFAULT 0,
+  `time_delivered` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -29,8 +29,8 @@ DROP TABLE IF EXISTS `events`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `events` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) COLLATE utf8_bin NOT NULL,
-  `state` int(11) NOT NULL,
+  `name` varchar(255) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `state` int(11) NOT NULL DEFAULT 0,
   `url` varchar(1024) COLLATE utf8_bin NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
@@ -42,7 +42,7 @@ CREATE TABLE `problems` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `letter` varchar(255) COLLATE utf8_bin NOT NULL,
   `name` varchar(255) COLLATE utf8_bin NOT NULL,
-  `color` varchar(255) COLLATE utf8_bin NOT NULL,
+  `color` varchar(255) COLLATE utf8_bin NOT NULL DEFAULT '',
   `event_id` int(11) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
@@ -53,7 +53,7 @@ DROP TABLE IF EXISTS `teams`;
 CREATE TABLE `teams` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8_bin NOT NULL,
-  `state` int(11) NOT NULL,
+  `state` int(11) NOT NULL DEFAULT 0,
   `event_id` int(11) NOT NULL,
   `long_name` varchar(255) COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`id`)
