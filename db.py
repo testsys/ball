@@ -1,4 +1,7 @@
-import cymysql
+try:
+    import cymysql
+except ImportError:
+    import pymysql as cymysql
 
 import config
 
