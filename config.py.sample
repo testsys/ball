@@ -1,4 +1,5 @@
-base_url = 'https://acm.math.spbu.ru/ball'
+base_url = '/ball'
+base_url_global = 'https://acm.math.spbu.ru/ball'
 vk_app_id = '12345'
 vk_client_secret = 'secret'
 auth_salt = 'salt'

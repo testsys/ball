@@ -9,6 +9,7 @@ import random
 import string
 import urllib
 import json
+import logging
 
 import lang
 import config
@@ -30,7 +31,7 @@ def index():
         content = lang.lang['index_no_events']
     for e in events:
         content += (
-            '<div><a href="event' + str(e[0]) + '">' +
+            '<div><a href="' + config.base_url + '/event' + str(e[0]) + '">' +
             cgi.escape(e[1]) + '</a></div>\n')
     if user_id:
         content += (
@@ -45,6 +46,7 @@ def index():
         'template.html',
         title=lang.lang['index_title'],
         auth=auth_html,
+        base=config.base_url,
         content=content)
 
 
@@ -53,7 +55,7 @@ def do_add_event():
     conn, cur = db.mysql_init()
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
-        return redirect(config.base_url)
+        return redirect(config.base_url, code=307)
     try:
         event_url = request.form['url']
     except:
@@ -101,7 +103,7 @@ def problem(problem_id):
         ' <b>' + problems[0]['color'] + '</b>' + '</span></div>')
     for c in colors:
         colors_html += (
-            '<div><a href="/ball/do_set_color?problem=' +
+            '<div><a href="' + config.base_url + '/do_set_color?problem=' +
             str(problem_id) + '&color=' + urllib.parse.quote(c) +
             '"><span style="color:' + c + '">' +
             lang.lang['problem_set_color'] +
@@ -112,17 +114,18 @@ def problem(problem_id):
         'template.html',
         title=problems[0]['letter'],
         auth=auth_html,
+        base=config.base_url,
         content=content)
 
 
 def get_state_str_current(event_id, b):
     state_str = ''
     state_str += (
-        ' <a href="/ball/do_done?event=' + str(event_id) +
+        ' <a href="' + config.base_url + '/do_done?event=' + str(event_id) +
         '&balloon=' + str(b['id']) + '">' +
         lang.lang['event_queue_done'] + '</a>')
     state_str += (
-        ' <a href="/ball/do_drop?event=' + str(event_id) +
+        ' <a href="' + config.base_url + '/do_drop?event=' + str(event_id) +
         '&balloon=' + str(b['id']) + '">' +
         lang.lang['event_queue_drop'] + '</a>')
     return state_str
@@ -133,7 +136,7 @@ def get_state_str_queue(event_id, b):
     if b['state'] >= 0 and b['state'] < 100:
         state_str = (
             lang.lang['balloon_state_wanted'] +
-            ' <a href="/ball/do_take?event=' + str(event_id) +
+            ' <a href="' + config.base_url + '/do_take?event=' + str(event_id) +
             '&balloon=' + str(b['id']) + '">' +
             lang.lang['event_queue_take'] + '</a>')
     elif b['state'] < 200:
@@ -160,8 +163,11 @@ def event(event_id):
         'select id, name, state, url from events' +
         ' where id=%s',
         [event_id])
+    e = None
     for row in cur.fetchall():
         e = row
+    if e is None:
+        return redirect(config.base_url)
     event = {
         'name': e[1],
         'state': e[2],
@@ -206,7 +212,7 @@ def event(event_id):
             text + '</td>')
         problems_html += (
             '<td class="balloons_problem_letter">' +
-            '<a href="/ball/problem' + str(p['id']) + '">' +
+            '<a href="' + config.base_url + '/problem' + str(p['id']) + '">' +
             p['letter'] + '</a>' +
             '(' + str(p['cnt']) + ')' + '</td>')
     problems_html += '</tr></table>\n'
@@ -326,6 +332,7 @@ def event(event_id):
     return render_template(
         'template.html',
         title=event['name'],
+        base=config.base_url,
         content=content)
 
 
@@ -412,7 +419,7 @@ def create_auth_token(user_id):
 def check_auth(request):
     auth_html = (
         '<div>' + lang.lang['index_not_authorised'] +
-        ' <a href="/ball/auth">' +
+        ' <a href="' + config.base_url + 'auth">' +
         lang.lang['index_log_in'] +
         '</a></div>\n')
     try:
@@ -442,6 +449,7 @@ def auth():
         'template.html',
         title=lang.lang['auth'],
         auth=auth_html,
+        base=config.base_url,
         content=content)
 
 
@@ -452,7 +460,7 @@ def auth_vk_start():
         'client_id=' + config.vk_app_id +
         '&display=page' +
         '&response_type=code' +
-        '&redirect_uri=' + config.base_url + '/auth/vk/done')
+        '&redirect_uri=' + config.base_url_global + '/auth/vk/done')
 
 
 @ball.route('/auth/vk/done')
@@ -464,14 +472,16 @@ def auth_vk_done():
     vk_oauth_url = (
         'https://oauth.vk.com/access_token?client_id=' +
         config.vk_app_id + '&client_secret=' + config.vk_client_secret +
-        '&redirect_uri=' + config.base_url + '/auth/vk/done&code=' +
+        '&redirect_uri=' + config.base_url_global + '/auth/vk/done&code=' +
         code)
+    ball.logger.debug ('vk_oauth_url: ' + vk_oauth_url)
     res = json.loads(urllib.request.urlopen(vk_oauth_url).read().decode())
     if 'error' in res:
         error_content = 'Failed auth: ' + str(res['error_description'])
         return render_template(
             'template.html',
             title='Failed auth',
+            base=config.base_url,
             content=error_content)
     user_id = 'vk:' + str(res['user_id'])
     auth_token = create_auth_token(user_id)
@@ -512,6 +522,7 @@ def auth_google_done():
         error_content = 'Failed auth: ' + str(res['error_description'])
         return render_template('template.html',
                                title='Failed auth',
+                               base=config.base_url,
                                content=error_content)
     access_token = res['access_token']
     google_login_base = 'https://www.googleapis.com/plus/v1/people/me'
@@ -528,7 +539,15 @@ def auth_google_done():
     resp.set_cookie('ball_user_id', user_id)
     return resp
 
+class LoggerHandler (logging.StreamHandler):
+    def emit (x, record):
+        logging.StreamHandler.emit (x, record)
+
 if __name__ == '__main__':
     webc = config.config['web']
     ball.debug = webc['debug']
+    ball.logger.setLevel(logging.DEBUG)
+    handler = LoggerHandler()
+    handler.setLevel(logging.DEBUG)
+    ball.logger.addHandler(handler)
     ball.run(host=webc['host'], port=webc['port'])
