@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
-from flask import (
-    Flask, url_for, render_template, request, make_response, redirect)
-import cgi
+from flask import Flask, render_template, request, make_response, redirect
 import hashlib
 import time
 import random
@@ -12,6 +10,7 @@ import json
 import logging
 
 import lang
+import design
 import config
 from db import DB
 
@@ -27,17 +26,9 @@ def index():
     if len(events) == 0:
         content = lang.lang['index_no_events']
     for e in events:
-        content += (
-            '<div><a href="' + config.base_url + '/event' + str(e[0]) + '">' +
-            cgi.escape(e[1]) + '</a></div>\n')
+        content += design.event_link (url=config.base_url + '/event' + str(e[0]), name=e[1])
     if user_id:
-        content += (
-            '<div><form action="do_add_event" method="POST">' +
-            '<input type="text" placeholder="' +
-            lang.lang['index_monitor_url'] + '" name="url" />' +
-            '<input type="submit" value="' +
-            lang.lang['index_add_event'] + '" />' +
-            '</form></div>\n')
+        content += design.event_add_form ()
     db.close()
     return render_template(
         'template.html',
@@ -75,22 +66,15 @@ def problem(problem_id):
         '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
         '#0047AB', '#FFFFF']
     problems = [db.problem(problem_id)]
-    problems_html = (
-        '<h2>' + problems[0]['letter'] + ': ' +
-        problems[0]['name'] + '</h2>\n')
+    problems_html = design.problem_header(letter=problems[0]['letter'], name=problems[0]['name'])
     content += problems_html
     colors_html = ''
-    colors_html += (
-        '<div><span style="color:' + problems[0]['color'] + '">' +
-        lang.lang['problem_cur_color'] +
-        ' <b>' + problems[0]['color'] + '</b>' + '</span></div>')
+    colors_html += design.problem_color(color=problems[0]['color'])
     for c in colors:
-        colors_html += (
-            '<div><a href="' + config.base_url + '/do_set_color?problem=' +
-            str(problem_id) + '&color=' + urllib.parse.quote(c) +
-            '"><span style="color:' + c + '">' +
-            lang.lang['problem_set_color'] +
-            ' <b>' + c + '</b>' + '</span></a></div>')
+        colors_html += design.color_select(
+            url=config.base_url + '/do_set_color?problem=' + str(problem_id) + '&color=' + urllib.parse.quote(c),
+            color=c
+        )
     content += colors_html
     db.close()
     return render_template(
@@ -102,15 +86,13 @@ def problem(problem_id):
 
 
 def get_state_str_current(event_id, b):
-    state_str = ''
-    state_str += (
-        ' <a href="' + config.base_url + '/do_done?event=' + str(event_id) +
-        '&balloon=' + str(b['id']) + '">' +
-        lang.lang['event_queue_done'] + '</a>')
-    state_str += (
-        ' <a href="' + config.base_url + '/do_drop?event=' + str(event_id) +
-        '&balloon=' + str(b['id']) + '">' +
-        lang.lang['event_queue_drop'] + '</a>')
+    state_str = design.link(
+        url=config.base_url + '/do_done?event=' + str(event_id) + '&balloon=' + str(b['id']),
+        label=lang.lang['event_queue_done']
+    ) + ' ' + design.link(
+        url=config.base_url + '/do_drop?event=' + str(event_id) + '&balloon=' + str(b['id']),
+        label=lang.lang['event_queue_drop']
+    )
     return state_str
 
 
@@ -118,18 +100,20 @@ def get_state_str_queue(event_id, b):
     state_str = ''
     if b['state'] >= 0 and b['state'] < 100:
         state_str = (
-            lang.lang['balloon_state_wanted'] +
-            ' <a href="' + config.base_url + '/do_take?event=' + str(event_id) +
-            '&balloon=' + str(b['id']) + '">' +
-            lang.lang['event_queue_take'] + '</a>')
+            design.text(text=lang.lang['balloon_state_wanted']) + ' ' +
+            design.link(
+                url=config.base_url + '/do_take?event=' + str(event_id) + '&balloon=' + str(b['id']),
+                label=lang.lang['event_queue_take']
+            )
+        )
     elif b['state'] < 200:
-        state_str = lang.lang['balloon_state_carrying']
+        state_str = design.text(text=lang.lang['balloon_state_carrying'])
     elif b['state'] < 300:
-        state_str = lang.lang['balloon_state_delivered']
+        state_str = design.text(text=lang.lang['balloon_state_delivered'])
     else:
-        state_str = lang.lang['balloon_state_error']
+        state_str = design.text(lang.lang['balloon_state_error'])
     if str(b['volunteer_id']) != '':
-        state_str += ' (' + str(b['volunteer_id']) + ')'
+        state_str += ' ' + design.volunteer(id=str(b['volunteer_id']))
     return state_str
 
 
@@ -152,9 +136,7 @@ def event(event_id):
         'state': e[2],
         'url': e[3]}
     event_html = ''
-    event_html += (
-        '<div><a href="' + cgi.escape(event['url']) + '">' +
-        lang.lang['event_header_monitor_link'] + '</a></div>\n')
+    event_html += design.monitor_link(url=event['url'])
     content += event_html
 
     problems = db.problems(event_id)
@@ -162,22 +144,18 @@ def event(event_id):
     for p in problems:
         cnt = db.balloons_count(event_id, p['id'])
         p['cnt'] = cnt
-    problems_html = '<h2>' + lang.lang['event_header_problems'] + '</h2>\n'
-    problems_html += '<table style="width: 100%;"><tr>'
-    for p in problems:
-        text = '&nbsp;'
-        if p['color'] == '':
-            text = '?'
-        problems_html += (
-            '<td class="balloons_problem_color" style="' +
-            'background-color: ' + p['color'] + ';">' +
-            text + '</td>')
-        problems_html += (
-            '<td class="balloons_problem_letter">' +
-            '<a href="' + config.base_url + '/problem' + str(p['id']) + '">' +
-            p['letter'] + '</a>' +
-            '(' + str(p['cnt']) + ')' + '</td>')
-    problems_html += '</tr></table>\n'
+    problems_html = design.problems(
+        problems=''.join ([
+            design.problem(
+                color_token='&nbsp;' if p['color'] else '?',
+                color=p['color'],
+                url=config.base_url + '/problem' + str(p['id']),
+                letter=p['letter'],
+                count=str(p['cnt'])
+            )
+            for p in problems
+        ])
+    )
     content += problems_html
 
     teams = db.teams(event_id)
@@ -200,37 +178,36 @@ def event(event_id):
     def get_balloons_html(header, get_state_str, balloons):
         if len(balloons) == 0:
             return ''
-        balloons_html = '<h2>' + header + '</h2>\n'
-        balloons_html += '<table style="width: 100%;">\n'
+        balloons_html = []
         for b in balloons:
             p = problems[problems_map[b['problem_id']]]
             t = teams[teams_map[b['team_id']]]
             state_str = get_state_str(event_id, b)
-            balloons_html += '<tr class="balloons_row">'
             balloons_text = '&nbsp;'
             if not p['color']:
                 balloons_text = '?'
-            balloons_html += (
-                '<td class="balloons_balloon_color"' +
-                ' style="background-color: ' + p['color'] + '">' +
-                balloons_text + '</td>')
-            x = ''
             if first_to_solve[b['problem_id']] == b['id']:
-                x = '<b>' + lang.lang['event_queue_first_to_solve'] + '</b>'
-            balloons_html += (
-                '<td>' + x + lang.lang['event_queue_problem'] +
-                ' <b>' + p['letter'] + '</b></td>')
-            x = ''
-            if b['team_id'] in first_solved:
-                if first_solved[b['team_id']] == b['id']:
-                    x = '<b>' + lang.lang['event_queue_first_solved'] + '</b>'
-            balloons_html += (
-                '<td>' + x + lang.lang['event_queue_team'] +
-                ' <b>' + t['name'] + '</b>: ' +
-                cgi.escape(t['long_name']) + '</td>')
-            balloons_html += '<td>' + state_str + '</td>'
-            balloons_html += '<tr>\n'
-        balloons_html += '</table>\n'
+                x = design.fts(text=lang.lang['event_queue_problem'])
+            else:
+                x = design.fts_no(text=lang.lang['event_queue_problem'])
+            if b['team_id'] in first_solved and first_solved[b['team_id']] == b['id']:
+                y = design.fts(text=lang.lang['event_queue_team'])
+            else:
+                y = design.fts_no(text=lang.lang['event_queue_team'])
+            balloons_html.append(design.balloon(
+                color_token=balloons_text,
+                color=p['color'],
+                problem_comment=x,
+                letter=p['letter'],
+                team_comment=y,
+                team_short=t['name'],
+                team=t['long_name'],
+                state=state_str
+            ))
+        balloons_html = design.balloons(
+            header=header,
+            balloons=''.join (balloons_html)
+        )
         return balloons_html
 
     balloons = db.balloons_my(event_id, user_id)
@@ -329,11 +306,7 @@ def create_auth_token(user_id):
 
 
 def check_auth(request):
-    auth_html = (
-        '<div>' + lang.lang['index_not_authorised'] +
-        ' <a href="' + config.base_url + 'auth">' +
-        lang.lang['index_log_in'] +
-        '</a></div>\n')
+    auth_html = design.auth(url=config.base_url + 'auth')
     try:
         user_id = request.cookies.get('ball_user_id')
         auth_token = request.cookies.get('ball_auth_token')
@@ -348,15 +321,8 @@ def check_auth(request):
 @ball.route('/auth')
 def auth():
     user_id, auth_html = check_auth(request)
-    content = ''
-    content += (
-        '<div><a href="' +
-        config.base_url +
-        '/auth/vk/start">VK</a></div>')
-    content += (
-        '<div><a href="' +
-        config.base_url +
-        '/auth/google/start">Google</a></div>')
+    content = design.auth_link(url=config.base_url + '/auth/vk/start', label='VK') + \
+        design.auth_link(url=config.base_url + '/auth/google/start', label='Google')
     return render_template(
         'template.html',
         title=lang.lang['auth'],
