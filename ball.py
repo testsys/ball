@@ -13,20 +13,17 @@ import logging
 
 import lang
 import config
-import db
+from db import DB
 
 ball = Flask(__name__)
 
 
 @ball.route('/')
 def index():
-    conn, cur = db.mysql_init()
+    db = DB()
     user_id, auth_html = check_auth(request)
     content = ''
-    events = []
-    cur.execute('select id, name, state from events')
-    for row in cur.fetchall():
-        events.append(row)
+    events = db.events()
     if len(events) == 0:
         content = lang.lang['index_no_events']
     for e in events:
@@ -41,7 +38,7 @@ def index():
             '<input type="submit" value="' +
             lang.lang['index_add_event'] + '" />' +
             '</form></div>\n')
-    db.mysql_close(conn, cur)
+    db.close()
     return render_template(
         'template.html',
         title=lang.lang['index_title'],
@@ -52,7 +49,7 @@ def index():
 
 @ball.route('/do_add_event', methods=['POST'])
 def do_add_event():
-    conn, cur = db.mysql_init()
+    db = DB()
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url, code=307)
@@ -60,11 +57,8 @@ def do_add_event():
         event_url = request.form['url']
     except:
         return redirect(config.base_url)
-    cur.execute(
-        'insert into events (state, url) values (%s, %s)',
-        [1, event_url])
-    conn.commit()
-    db.mysql_close(conn, cur)
+    db.event_add(1, event_url)
+    db.close(commit=True)
     return redirect(config.base_url)
 
 
@@ -73,25 +67,14 @@ def problem(problem_id):
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     problem_id = int(problem_id)
     content = ''
     colors = [
         '#f9ff0f', '#000000', '#f6ab23', '#cc0000',
         '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
         '#0047AB', '#FFFFF']
-    problems = []
-    cur.execute(
-        'select id, letter, color, name from problems' +
-        ' where id=%s',
-        [problem_id])
-    for row in cur.fetchall():
-        p = {
-            'id': row[0],
-            'letter': row[1],
-            'color': row[2],
-            'name': row[3]}
-        problems.append(p)
+    problems = [db.problem(problem_id)]
     problems_html = (
         '<h2>' + problems[0]['letter'] + ': ' +
         problems[0]['name'] + '</h2>\n')
@@ -109,7 +92,7 @@ def problem(problem_id):
             lang.lang['problem_set_color'] +
             ' <b>' + c + '</b>' + '</span></a></div>')
     content += colors_html
-    db.mysql_close(conn, cur)
+    db.close()
     return render_template(
         'template.html',
         title=problems[0]['letter'],
@@ -155,17 +138,13 @@ def event(event_id):
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     event_id = int(event_id)
     content = ''
-    events = []
-    cur.execute(
-        'select id, name, state, url from events' +
-        ' where id=%s',
-        [event_id])
-    e = None
-    for row in cur.fetchall():
-        e = row
+    try:
+        e = db.event(event_id)
+    except KeyError:
+        e = None
     if e is None:
         return redirect(config.base_url)
     event = {
@@ -178,27 +157,10 @@ def event(event_id):
         lang.lang['event_header_monitor_link'] + '</a></div>\n')
     content += event_html
 
-    problems = []
-    problems_map = {}
-    cur.execute(
-        'select id, letter, color from problems' +
-        ' where event_id=%s',
-        [event_id])
-    for row in cur.fetchall():
-        p = {
-            'id': row[0],
-            'letter': row[1],
-            'color': row[2]}
-        problems.append(p)
-        problems_map[p['id']] = len(problems) - 1
+    problems = db.problems(event_id)
+    problems_map = {p['id']: i for i, p in enumerate (problems)}
     for p in problems:
-        cur.execute(
-            'select count(*) from balloons' +
-            ' where event_id=%s and problem_id=%s',
-            [event_id, p['id']])
-        cnt = 0
-        for row in cur.fetchall():
-            cnt = int(row[0])
+        cnt = db.balloons_count(event_id, p['id'])
         p['cnt'] = cnt
     problems_html = '<h2>' + lang.lang['event_header_problems'] + '</h2>\n'
     problems_html += '<table style="width: 100%;"><tr>'
@@ -218,50 +180,24 @@ def event(event_id):
     problems_html += '</tr></table>\n'
     content += problems_html
 
-    teams = []
-    teams_map = {}
-    cur.execute(
-        'select id, name, long_name from teams' +
-        ' where event_id=%s',
-        [event_id])
-    for row in cur.fetchall():
-        t = {
-            'id': row[0],
-            'name': row[1],
-            'long_name': row[2]}
-        teams.append(t)
-        teams_map[t['id']] = len(teams) - 1
+    teams = db.teams(event_id)
+    teams_map = {t['id']: i for i, t in enumerate (teams)}
 
     first_to_solve = {}
     for p in problems:
-        cur.execute(
-            'select id from balloons' +
-            ' where event_id=%s and problem_id=%s' +
-            ' order by id limit 1',
-            [event_id, p['id']])
-        for row in cur.fetchall():
-            first_to_solve[p['id']] = row[0]
+        try:
+            first_to_solve[p['id']] = db.fts(event_id, problem_id=p['id'])
+        except KeyError:
+            pass
 
     first_solved = {}
     for t in teams:
-        cur.execute(
-            'select id from balloons' +
-            ' where event_id=%s and team_id=%s' +
-            ' order by id limit 1',
-            [event_id, t['id']])
-        for row in cur.fetchall():
-            first_solved[t['id']] = row[0]
+        try:
+            first_solved[t['id']] = db.fts(event_id, team_id=t['id'])
+        except KeyError:
+            pass
 
-    def get_balloons_html(header, get_state_str):
-        balloons = []
-        for row in cur.fetchall():
-            b = {
-                'id': row[0],
-                'problem_id': row[1],
-                'team_id': row[2],
-                'volunteer_id': row[3],
-                'state': int(row[4])}
-            balloons.append(b)
+    def get_balloons_html(header, get_state_str, balloons):
         if len(balloons) == 0:
             return ''
         balloons_html = '<h2>' + header + '</h2>\n'
@@ -297,38 +233,22 @@ def event(event_id):
         balloons_html += '</table>\n'
         return balloons_html
 
-    fields = ', '.join(
-        ['id', 'problem_id', 'team_id', 'volunteer_id', 'state'])
-
-    cur.execute(
-        'select ' + fields +
-        ' from balloons' +
-        ' where event_id=%s and state>=100 and state<200 and volunteer_id=%s' +
-        ' order by state, id desc',
-        [event_id, user_id])
+    balloons = db.balloons_my(event_id, user_id)
     content += get_balloons_html(
         lang.lang['event_header_your_queue'],
-        get_state_str_current)
+        get_state_str_current, balloons)
 
-    cur.execute(
-        'select ' + fields +
-        ' from balloons where event_id=%s and state<100' +
-        ' order by state, id desc',
-        [event_id])
+    balloons = db.balloons_new(event_id)
     content += get_balloons_html(
         lang.lang['event_header_offer'],
-        get_state_str_queue)
+        get_state_str_queue, balloons)
 
-    cur.execute(
-        'select ' + fields +
-        ' from balloons where event_id=%s and state>=100' +
-        ' order by state, id desc',
-        [event_id])
+    balloons = db.balloons_old(event_id)
     content += get_balloons_html(
         lang.lang['event_header_queue'],
-        get_state_str_queue)
+        get_state_str_queue, balloons)
 
-    db.mysql_close(conn, cur)
+    db.close()
     return render_template(
         'template.html',
         title=event['name'],
@@ -341,16 +261,14 @@ def do_take():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
-    cur.execute('update balloons set state=101, volunteer_id=%s where id=%s',
-                [user_id, balloon_id])
-    conn.commit()
-    db.mysql_close(conn, cur)
+    db.balloon_take(balloon_id, user_id)
+    db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
 
 
@@ -359,16 +277,14 @@ def do_done():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
-    cur.execute('update balloons set state=201, volunteer_id=%s where id=%s',
-                [user_id, balloon_id])
-    conn.commit()
-    db.mysql_close(conn, cur)
+    db.balloon_done(balloon_id, user_id)
+    db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
 
 
@@ -377,15 +293,14 @@ def do_drop():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
-    cur.execute('update balloons set state=1 where id=%s', [balloon_id])
-    conn.commit()
-    db.mysql_close(conn, cur)
+    db.balloon_drop(balloon_id)
+    db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
 
 
@@ -394,17 +309,14 @@ def do_set_color():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    conn, cur = db.mysql_init()
+    db = DB()
     try:
         problem_id = int(request.args.get('problem', '0'))
         color = request.args.get('color', '')
     except:
         return redirect(config.base_url)
-    cur.execute(
-        'update problems set color=%s where id=%s',
-        [color, problem_id])
-    conn.commit()
-    db.mysql_close(conn, cur)
+    db.problem_color(problem_id, color)
+    db.close(commit=True)
     return redirect(config.base_url + '/problem' + str(problem_id))
 
 
