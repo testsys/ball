@@ -2,6 +2,7 @@ base_url = '/ball'
 base_url_global = 'https://acm.math.spbu.ru/ball'
 vk_app_id = '12345'
 vk_client_secret = 'secret'
+google_client_id = '12345'
 auth_salt = 'salt'
 
 allowed_users = ['vk:12345']

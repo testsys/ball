@@ -77,6 +77,7 @@ auth = __wrap(
     lang.lang['index_log_in'] +
     '</a></div>\n'
 )
+auth_ok = __wrap('<div><b>{{user}}</b></div>\n')
 auth_link = __wrap('<div><a href="{{url}}">{{label}}</a></div>\n')
 volunteer = __wrap(' ({{id}})')
 

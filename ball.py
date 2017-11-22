@@ -9,6 +9,7 @@ import urllib
 import json
 import logging
 
+import auth
 import lang
 import design
 import config
@@ -297,14 +298,6 @@ def do_set_color():
     return redirect(config.base_url + '/problem' + str(problem_id))
 
 
-def create_auth_token(user_id):
-    day = int(time.time() / (24 * 60 * 60))
-    return hashlib.md5((
-        str(user_id) + ':' +
-        str(day) + ':' +
-        config.auth_salt).encode()).hexdigest()
-
-
 def check_auth(request):
     auth_html = design.auth(url=config.base_url + 'auth')
     try:
@@ -312,14 +305,14 @@ def check_auth(request):
         auth_token = request.cookies.get('ball_auth_token')
     except:
         return None, auth_html
-    if auth_token != create_auth_token(user_id):
+    if not auth.check(user_id, auth_token):
         return None, auth_html
-    auth_html = '<div><b>' + str(user_id) + '</b></div>\n'
+    auth_html = design.auth_ok(user=str(user_id))
     return user_id, auth_html
 
 
 @ball.route('/auth')
-def auth():
+def method_auth():
     user_id, auth_html = check_auth(request)
     content = design.auth_link(url=config.base_url + '/auth/vk/start', label='VK') + \
         design.auth_link(url=config.base_url + '/auth/google/start', label='Google')
@@ -333,12 +326,7 @@ def auth():
 
 @ball.route('/auth/vk/start')
 def auth_vk_start():
-    return redirect(
-        'https://oauth.vk.com/authorize?' +
-        'client_id=' + config.vk_app_id +
-        '&display=page' +
-        '&response_type=code' +
-        '&redirect_uri=' + config.base_url_global + '/auth/vk/done')
+    return redirect(auth.vk.url)
 
 
 @ball.route('/auth/vk/done')
@@ -347,22 +335,16 @@ def auth_vk_done():
         code = request.args.get('code', '')
     except:
         code = 'None'
-    vk_oauth_url = (
-        'https://oauth.vk.com/access_token?client_id=' +
-        config.vk_app_id + '&client_secret=' + config.vk_client_secret +
-        '&redirect_uri=' + config.base_url_global + '/auth/vk/done&code=' +
-        code)
-    ball.logger.debug ('vk_oauth_url: ' + vk_oauth_url)
-    res = json.loads(urllib.request.urlopen(vk_oauth_url).read().decode())
-    if 'error' in res:
-        error_content = 'Failed auth: ' + str(res['error_description'])
+    try:
+        user_id = auth.vk.do (code)
+    except auth.AuthentificationError as error:
+        error_content = 'Failed auth: ' + str(error)
         return render_template(
             'template.html',
             title='Failed auth',
             base=config.base_url,
             content=error_content)
-    user_id = 'vk:' + str(res['user_id'])
-    auth_token = create_auth_token(user_id)
+    auth_token = auth.create_token(user_id)
     resp = make_response(redirect(config.base_url))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
@@ -371,12 +353,7 @@ def auth_vk_done():
 
 @ball.route('/auth/google/start')
 def auth_google_start():
-    return redirect(
-        'https://accounts.google.com/o/oauth2/v2/auth?' +
-        'client_id=' + config.google_client_id +
-        '&response_type=code' +
-        '&scope=https://www.googleapis.com/auth/plus.login' +
-        '&redirect_uri=' + config.base_url_global + '/auth/google/done')
+    return redirect(auth.google.url)
 
 
 @ball.route('/auth/google/done')
@@ -385,32 +362,14 @@ def auth_google_done():
         code = request.args.get('code', '')
     except:
         code = 'None'
-    google_oauth_base = 'https://www.googleapis.com/oauth2/v4/token'
-    google_oauth_data = urllib.parse.urlencode({
-        'client_id': config.google_client_id,
-        'client_secret': config.google_client_secret,
-        'redirect_uri': config.base_url + '/auth/google/done',
-        'code': code,
-        'grant_type': 'authorization_code'})
-    response = urllib.request.urlopen(
-        google_oauth_base,
-        google_oauth_data.encode('utf-8'))
-    res = json.loads(response.read().decode())
-    if 'error' in res:
-        error_content = 'Failed auth: ' + str(res['error_description'])
+    try:
+        user_id = auth.google.do(code)
+    except auth.AuthentificationError as error:
+        error_content = 'Failed auth: ' + str(error)
         return render_template('template.html',
                                title='Failed auth',
                                base=config.base_url,
                                content=error_content)
-    access_token = res['access_token']
-    google_login_base = 'https://www.googleapis.com/plus/v1/people/me'
-    google_login_data = \
-        urllib.parse.urlencode(
-            {'access_token': access_token}
-        )
-    res = json.loads(urllib.request.urlopen(google_login_base + '?' +
-                     google_login_data).read().decode())
-    user_id = 'google:' + str(res['id'])
     auth_token = create_auth_token(user_id)
     resp = make_response(redirect(config.base_url))
     resp.set_cookie('ball_auth_token', auth_token)
@@ -429,3 +388,5 @@ if __name__ == '__main__':
     handler.setLevel(logging.DEBUG)
     ball.logger.addHandler(handler)
     ball.run(host=webc['host'], port=webc['port'])
+
+
