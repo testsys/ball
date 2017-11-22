@@ -376,7 +376,7 @@ def auth_google_start():
         'client_id=' + config.google_client_id +
         '&response_type=code' +
         '&scope=https://www.googleapis.com/auth/plus.login' +
-        '&redirect_uri=' + config.base_url + '/auth/google/done')
+        '&redirect_uri=' + config.base_url_global + '/auth/google/done')
 
 
 @ball.route('/auth/google/done')
