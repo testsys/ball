@@ -18,6 +18,9 @@ class DB:
         )
         self.__cursor = self.__connection.cursor()
 
+    def legacy(self):
+        return (self.__connection, self.__cursor)
+
     def close(self, *, commit=False):
         if commit:
             self.__connection.commit()
