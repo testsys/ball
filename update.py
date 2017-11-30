@@ -65,8 +65,6 @@ def parse_pcms(data, *, callback_ok, callback_team, callback_problem, callback_c
                     callback_ok(child.attrib['id'], problem.attrib['alias'])
         else:
             raise NotImplementedError("parse_pcms: tag '%s'" % child.tag)
-        #if child.tag == 'session':
-        #print (child)
 
 
 def parse_testsys(data, *, callback_ok, callback_team, callback_problem, callback_contest):
