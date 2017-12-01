@@ -115,24 +115,58 @@ def problem(problem_id):
         content=content)
 
 
-def get_state_str_current(event_id, b):
-    state_str = design.link(
-        url=config.base_url + '/do_done?event=' + str(event_id) + '&balloon=' + str(b['id']),
+def do_take(event_id, balloon_id, user_id):
+    db = DB()
+    balloon = db.balloon(balloon_id, lock=True)
+    if balloon is None:
+        return abort(404)
+    state = int (balloon[4])
+    if state >= 100:
+        content = design.error(
+            message=lang.lang['error_ball_taken'],
+            back=config.base_url + '/event' + str(event_id)
+        )
+        return render_template(
+            'template.html',
+            title=lang.lang['error'],
+            base=config.base_url,
+            content=content
+        )
+    db.balloon_take(balloon_id, user_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
+
+def do_done(event_id, balloon_id, user_id):
+    db = DB()
+    db.balloon_done(balloon_id, user_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
+
+def do_drop(event_id, balloon_id):
+    db = DB()
+    db.balloon_drop(balloon_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
+
+
+def get_state_str_current(event_id, b, *, user_id):
+    state_str = design.action_link(
+        token=action_add(user_id, functools.partial(do_done, event_id, b['id'], user_id)),
         label=lang.lang['event_queue_done']
-    ) + ' ' + design.link(
-        url=config.base_url + '/do_drop?event=' + str(event_id) + '&balloon=' + str(b['id']),
+    ) + ' ' + design.action_link(
+        token=action_add(user_id, functools.partial(do_drop, event_id, b['id'])),
         label=lang.lang['event_queue_drop']
     )
     return state_str
 
 
-def get_state_str_queue(event_id, b):
+def get_state_str_queue(event_id, b, *, user_id):
     state_str = ''
     if b['state'] >= 0 and b['state'] < 100:
         state_str = (
             design.text(text=lang.lang['balloon_state_wanted']) + ' ' +
-            design.link(
-                url=config.base_url + '/do_take?event=' + str(event_id) + '&balloon=' + str(b['id']),
+            design.action_link(
+                token=action_add(user_id, functools.partial (do_take, event_id, b['id'], user_id)),
                 label=lang.lang['event_queue_take']
             )
         )
@@ -206,13 +240,14 @@ def event(event_id):
             pass
 
     def get_balloons_html(header, get_state_str, balloons):
+        nonlocal user_id
         if len(balloons) == 0:
             return ''
         balloons_html = []
         for b in balloons:
             p = problems[problems_map[b['problem_id']]]
             t = teams[teams_map[b['team_id']]]
-            state_str = get_state_str(event_id, b)
+            state_str = get_state_str(event_id, b, user_id=user_id)
             balloons_text = '&nbsp;'
             if not p['color']:
                 balloons_text = '?'
@@ -243,17 +278,18 @@ def event(event_id):
     balloons = db.balloons_my(event_id, user_id)
     content += get_balloons_html(
         lang.lang['event_header_your_queue'],
-        get_state_str_current, balloons)
-
+        get_state_str_current, balloons
+    )
     balloons = db.balloons_new(event_id)
     content += get_balloons_html(
         lang.lang['event_header_offer'],
-        get_state_str_queue, balloons)
-
+        get_state_str_queue, balloons
+    )
     balloons = db.balloons_old(event_id)
     content += get_balloons_html(
         lang.lang['event_header_queue'],
-        get_state_str_queue, balloons)
+        get_state_str_queue, balloons
+    )
 
     db.close()
     return render_template(
@@ -261,54 +297,6 @@ def event(event_id):
         title=event['name'],
         base=config.base_url,
         content=content)
-
-
-@ball.route('/do_take')
-def do_take():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
-        return redirect(config.base_url)
-    try:
-        event_id = int(request.args.get('event', '0'))
-        balloon_id = int(request.args.get('balloon', '0'))
-    except:
-        return redirect(config.base_url)
-    db = DB()
-    db.balloon_take(balloon_id, user_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-
-@ball.route('/do_done')
-def do_done():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
-        return redirect(config.base_url)
-    try:
-        event_id = int(request.args.get('event', '0'))
-        balloon_id = int(request.args.get('balloon', '0'))
-    except:
-        return redirect(config.base_url)
-    db = DB()
-    db.balloon_done(balloon_id, user_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-
-@ball.route('/do_drop')
-def do_drop():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
-        return redirect(config.base_url)
-    try:
-        event_id = int(request.args.get('event', '0'))
-        balloon_id = int(request.args.get('balloon', '0'))
-    except:
-        return redirect(config.base_url)
-    db = DB()
-    db.balloon_drop(balloon_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
 
 
 def check_auth(request):

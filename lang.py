@@ -28,6 +28,11 @@ lang_ru = {
     'problem_cur_color': 'Цвет сейчас',
     'problem_set_color': 'Установить цвет',
 
+    'error': 'Ошибка',
+    'error_ball_taken': 'Шарик уже зарезервирован',
+
+    'back': 'Вернуться',
+
     '': ''
 }
 

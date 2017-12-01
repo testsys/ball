@@ -109,6 +109,16 @@ class DB:
             balloons.append(b)
         return balloons
 
+    def balloon(self, balloon_id, *, lock=False):
+        self.__cursor.execute (
+            'select id, problem_id, team_id, volunteer_id, state' +
+            ' from balloons where id=%s' +
+            (' for update' if lock else ''),
+            [balloon_id]
+        )
+        for row in self.__cursor.fetchall():
+            return row
+
     def balloons_new(self, event_id):
         return self.__balloons_filter(event_id, 'and state<100')
 
@@ -127,7 +137,7 @@ class DB:
         cnt = 0
         for row in self.__cursor.fetchall():
             return int(row[0])
-        raise WhatTheException()
+        raise "count(*) didn't return a result"
 
     def balloon_take(self, balloon_id, user_id):
         self.__cursor.execute(

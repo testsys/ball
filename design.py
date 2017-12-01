@@ -24,6 +24,16 @@ event_add_form = __wrap(
     lang.lang['index_add_event'] + '" />' +
     '</form></div>\n'
 )
+error = __wrap(
+    '<h2 style="color: red;">{{message}}</h2>\n'
+    '<p><a href="{{back}}">' + lang.lang['back'] + '</a></p>\n'
+)
+action_link = __wrap(
+    '<form action="action{{token}}" id="form{{token}}" method="POST">' +
+       '<span class="link" onclick="document.getElementById(\'form{{token}}\').submit();">' +
+       '{{label}}</span>' +
+    '</form>'
+)
 action_link_raw = __wrap(
     '<form action="action{{token}}" id="form{{token}}" method="POST">' +
        '<span class="link" onclick="document.getElementById(\'form{{token}}\').submit();">' +
