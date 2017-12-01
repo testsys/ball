@@ -63,7 +63,7 @@ class google:
         google_oauth_data = urllib.parse.urlencode({
             'client_id': config.google_client_id,
             'client_secret': config.google_client_secret,
-            'redirect_uri': config.base_url + '/auth/google/done',
+            'redirect_uri': config.base_url_global + '/auth/google/done',
             'code': code,
             'grant_type': 'authorization_code'})
         response = urllib.request.urlopen(

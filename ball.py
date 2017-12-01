@@ -371,7 +371,7 @@ def auth_google_done():
                                title='Failed auth',
                                base=config.base_url,
                                content=error_content)
-    auth_token = create_auth_token(user_id)
+    auth_token = auth.create_token(user_id)
     resp = make_response(redirect(config.base_url))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
