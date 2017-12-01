@@ -12,7 +12,7 @@ from db import DB
 db = DB()
 conn, cur = db.legacy()
 
-cur.execute('select id, url, name from events where state=1')
+cur.execute('select id, url, name from events where state=1 for update')
 events = []
 for row in cur.fetchall():
     events.append(list(row))
@@ -25,7 +25,7 @@ def team_load(event_id, team_name):
     global team_cache, cur
     if (event_id, team_name) not in team_cache:
         cur.execute(
-            'select id from teams where event_id=%s and name=%s',
+            'select id from teams where event_id=%s and name=%s for update',
             [event_id, team_name])
         for row in cur.fetchall():
             team_cache[(event_id, team_name)] = row[0]
@@ -35,7 +35,7 @@ def problem_load(event_id, problem_letter):
     global problem_cache, cur
     if (event_id, problem_letter) not in problem_cache:
         cur.execute(
-            'select id from problems where event_id=%s and letter=%s',
+            'select id from problems where event_id=%s and letter=%s for update',
             [event_id, problem_letter])
         for row in cur.fetchall():
             problem_cache[(event_id, problem_letter)] = row[0]
@@ -102,7 +102,7 @@ def parse_testsys(data, *, callback_ok, callback_team, callback_problem, callbac
 for event_id, event_url, event_name in events:
     cur.execute(
         'select id, problem_id, team_id from balloons' +
-        ' where event_id=%s',
+        ' where event_id=%s for update',
         [event_id])
     for row in cur.fetchall():
         balloon_id, problem_id, team_id = row
@@ -128,7 +128,7 @@ for event_id, event_url, event_name in events:
         global cur, team_cache
         cur.execute(
             'select id, long_name from teams' +
-            ' where event_id=%s and name=%s',
+            ' where event_id=%s and name=%s for update',
             [event_id, team_name]
         )
         team_id = None
@@ -153,7 +153,7 @@ for event_id, event_url, event_name in events:
         global cur, problem_cache
         cur.execute(
             'select id, name from problems' +
-            ' where event_id=%s and letter=%s',
+            ' where event_id=%s and letter=%s for update',
             [event_id, problem_letter]
         )
         problem_id = None

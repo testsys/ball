@@ -20,17 +20,17 @@ ball = Flask(__name__)
 
 @ball.route('/')
 def index():
-    db = DB()
     user_id, auth_html = check_auth(request)
     content = ''
+    db = DB()
     events = db.events()
+    db.close()
     if len(events) == 0:
         content = lang.lang['index_no_events']
     for e in events:
         content += design.event_link (url=config.base_url + '/event' + str(e[0]), name=e[1])
     if user_id:
         content += design.event_add_form ()
-    db.close()
     return render_template(
         'template.html',
         title=lang.lang['index_title'],
@@ -41,7 +41,6 @@ def index():
 
 @ball.route('/do_add_event', methods=['POST'])
 def do_add_event():
-    db = DB()
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url, code=307)
@@ -49,6 +48,7 @@ def do_add_event():
         event_url = request.form['url']
     except:
         return redirect(config.base_url)
+    db = DB()
     db.event_add(1, event_url)
     db.close(commit=True)
     return redirect(config.base_url)
@@ -59,14 +59,15 @@ def problem(problem_id):
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     problem_id = int(problem_id)
     content = ''
     colors = [
         '#f9ff0f', '#000000', '#f6ab23', '#cc0000',
         '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
         '#0047AB', '#FFFFF']
+    db = DB()
     problems = [db.problem(problem_id)]
+    db.close()
     problems_html = design.problem_header(letter=problems[0]['letter'], name=problems[0]['name'])
     content += problems_html
     colors_html = ''
@@ -77,7 +78,6 @@ def problem(problem_id):
             color=c
         )
     content += colors_html
-    db.close()
     return render_template(
         'template.html',
         title=problems[0]['letter'],
@@ -123,9 +123,9 @@ def event(event_id):
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     event_id = int(event_id)
     content = ''
+    db = DB()
     try:
         e = db.event(event_id)
     except KeyError:
@@ -239,12 +239,12 @@ def do_take():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
+    db = DB()
     db.balloon_take(balloon_id, user_id)
     db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
@@ -255,12 +255,12 @@ def do_done():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
+    db = DB()
     db.balloon_done(balloon_id, user_id)
     db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
@@ -271,12 +271,12 @@ def do_drop():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     try:
         event_id = int(request.args.get('event', '0'))
         balloon_id = int(request.args.get('balloon', '0'))
     except:
         return redirect(config.base_url)
+    db = DB()
     db.balloon_drop(balloon_id)
     db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
@@ -287,12 +287,12 @@ def do_set_color():
     user_id, auth_html = check_auth(request)
     if user_id not in config.allowed_users:
         return redirect(config.base_url)
-    db = DB()
     try:
         problem_id = int(request.args.get('problem', '0'))
         color = request.args.get('color', '')
     except:
         return redirect(config.base_url)
+    db = DB()
     db.problem_color(problem_id, color)
     db.close(commit=True)
     return redirect(config.base_url + '/problem' + str(problem_id))
