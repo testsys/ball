@@ -15,13 +15,21 @@ def __wrap(s, raw=[]):
 link = __wrap('<a href="{{url}}">{{label}}</a>\n')
 text = __wrap('{{text}}\n')
 event_link = __wrap('<div><a href="{{url}}">{{name}}</a></div>\n')
+event_nolink = __wrap('<div><span>{{name}}</span></div>\n')
 event_add_form = __wrap(
-    '<div><form action="do_add_event" method="POST">' +
+    '<div><form action="action{{token}}" method="POST">' +
     '<input type="text" placeholder="' +
     lang.lang['index_monitor_url'] + '" name="url" />' +
     '<input type="submit" value="' +
     lang.lang['index_add_event'] + '" />' +
     '</form></div>\n'
+)
+action_link_raw = __wrap(
+    '<form action="action{{token}}" id="form{{token}}" method="POST">' +
+       '<span class="link" onclick="document.getElementById(\'form{{token}}\').submit();">' +
+       '{{label}}</span>' +
+    '</form>',
+    raw={'label'}
 )
 problem_header = __wrap('<h2>{{letter}}: {{name}}</h2>\n')
 problem_color = __wrap(
@@ -30,9 +38,12 @@ problem_color = __wrap(
     ' <b>{{color}}</b></span></div>\n'
 )
 color_select = __wrap(
-    '<div><a href="{{url}}"><span style="color:{{color}}">' +
-    lang.lang['problem_set_color'] +
-    ' <b>{{color}}</b></span></a></div>\n'
+    '<div>{{link}}</div>\n',
+    raw={'link'}
+)
+color_select_label = __wrap(
+    '<span style="color:{{color}}">' + lang.lang['problem_set_color'] +
+    ' <b>{{color}}</b></span>'
 )
 monitor_link = __wrap(
     '<div><a href="{{url}}">' +

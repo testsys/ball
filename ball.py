@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-from flask import Flask, render_template, request, make_response, redirect
-import hashlib
-import time
-import random
-import string
+from flask import Flask, abort, render_template, request, make_response, redirect
+import functools
 import urllib
-import json
 import logging
+
+import sys
 
 import auth
 import lang
@@ -16,7 +14,36 @@ import config
 from db import DB
 
 ball = Flask(__name__)
+actions = {}
 
+def action_add(user_id, callback):
+    token = auth.create_token(user_id, add_random=True)
+    actions[token] = (user_id, callback)
+    return token
+
+@ball.route('/action<string:token>', methods=['POST'])
+def do_action(token):
+    user_id, auth_html = check_auth(request)
+    if user_id is None or user_id not in config.allowed_users:
+        return redirect(config.base_url, code=307)
+    if token not in actions:
+        return abort(403)
+    action_user, action_callback = actions[token]
+    del actions[token]
+    if action_user != user_id:
+        return abort(403)
+    return action_callback()
+
+
+def do_add_event():
+    try:
+        event_url = request.form['url']
+    except:
+        return redirect(config.base_url)
+    db = DB()
+    db.event_add(1, event_url)
+    db.close(commit=True)
+    return redirect(config.base_url)
 
 @ball.route('/')
 def index():
@@ -27,31 +54,31 @@ def index():
     db.close()
     if len(events) == 0:
         content = lang.lang['index_no_events']
+    if user_id is not None:
+        event_link = design.event_link
+    else:
+        event_link = design.event_nolink
     for e in events:
-        content += design.event_link (url=config.base_url + '/event' + str(e[0]), name=e[1])
-    if user_id:
-        content += design.event_add_form ()
+        if e[1]:
+            content += event_link (url=config.base_url + '/event' + str(e[0]), name=e[1])
+        else:
+            content += design.event_nolink (name=e[3])
+    if user_id is not None:
+        content += design.event_add_form (token=action_add (user_id, do_add_event))
     return render_template(
         'template.html',
         title=lang.lang['index_title'],
         auth=auth_html,
         base=config.base_url,
-        content=content)
+        content=content
+    )
 
 
-@ball.route('/do_add_event', methods=['POST'])
-def do_add_event():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
-        return redirect(config.base_url, code=307)
-    try:
-        event_url = request.form['url']
-    except:
-        return redirect(config.base_url)
+def do_set_color(problem_id, color):
     db = DB()
-    db.event_add(1, event_url)
+    db.problem_color(problem_id, color)
     db.close(commit=True)
-    return redirect(config.base_url)
+    return redirect(config.base_url + '/problem' + str(problem_id))
 
 
 @ball.route('/problem<int:problem_id>')
@@ -74,8 +101,10 @@ def problem(problem_id):
     colors_html += design.problem_color(color=problems[0]['color'])
     for c in colors:
         colors_html += design.color_select(
-            url=config.base_url + '/do_set_color?problem=' + str(problem_id) + '&color=' + urllib.parse.quote(c),
-            color=c
+            link=design.action_link_raw (
+                token=action_add(user_id, functools.partial(do_set_color, problem_id, c)),
+                label=design.color_select_label(color=c)
+            )
         )
     content += colors_html
     return render_template(
@@ -280,22 +309,6 @@ def do_drop():
     db.balloon_drop(balloon_id)
     db.close(commit=True)
     return redirect(config.base_url + '/event' + str(event_id))
-
-
-@ball.route('/do_set_color')
-def do_set_color():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
-        return redirect(config.base_url)
-    try:
-        problem_id = int(request.args.get('problem', '0'))
-        color = request.args.get('color', '')
-    except:
-        return redirect(config.base_url)
-    db = DB()
-    db.problem_color(problem_id, color)
-    db.close(commit=True)
-    return redirect(config.base_url + '/problem' + str(problem_id))
 
 
 def check_auth(request):

@@ -57,3 +57,11 @@ td.balloons_balloon_color {
 tr.balloons_row {
   padding: 10px;
 }
+
+span.link {
+  color: #0080ff;
+}
+span.link:hover {
+  cursor: pointer;
+}
+
