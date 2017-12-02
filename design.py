@@ -169,5 +169,5 @@ def auth_link(*, url, label):
 
 def volunteer(*, id):
     id = escape(id)
-    return ' ({%s)' % id
+    return ' (%s)' % id
 
