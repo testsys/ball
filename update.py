@@ -59,10 +59,15 @@ def parse_pcms(data, *, callback_ok, callback_team, callback_problem, callback_c
             for problem in child:
                 callback_problem(problem.attrib['alias'], problem.attrib['name'])
         elif child.tag == 'session':
-            callback_team(child.attrib['id'], child.attrib['party'])
+            id = child.attrib['alias']
+            if not id.startswith('S'):
+                # Hack for NEERC-2017: 'S' is for St. Petersburg
+                continue
+            callback_team(id, child.attrib['party'])
+            # callback_team(child.attrib['id'], child.attrib['party'])
             for problem in child:
                 if int (problem.attrib['accepted']) == 1:
-                    callback_ok(child.attrib['id'], problem.attrib['alias'])
+                    callback_ok(id, problem.attrib['alias'])
         else:
             raise NotImplementedError("parse_pcms: tag '%s'" % child.tag)
 

@@ -283,7 +283,7 @@ def event(event_id):
     balloons = db.balloons_new(event_id)
     content += get_balloons_html(
         lang.lang['event_header_offer'],
-        get_state_str_queue, balloons
+        get_state_str_queue, list (reversed (balloons))
     )
     balloons = db.balloons_old(event_id)
     content += get_balloons_html(

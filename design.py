@@ -80,7 +80,7 @@ balloon = __wrap(
     '<td class="balloons_balloon_color"' +
     ' style="background-color: {{color}}">{{color_token}}</td>' +
     '<td>{{problem_comment}} <b>{{letter}}</b></td>' +
-    '<td>{{team_comment}} <b>{{team_short}}</b>: {{team}}</td>' +
+    '<td>{{team_comment}} <b>{{team_short}}</b>: <span style="color: gray;">{{team}}</span></td>' +
     '<td>{{state}}</td>' +
     '<tr>\n',
     raw={'color_token', 'problem_comment', 'team_comment', 'state'}
