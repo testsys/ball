@@ -19,7 +19,7 @@ actions = {}
 
 
 def debug(*args, **kvargs):
-    print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, **kvargs)
+    print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, file=sys.stderr, **kvargs)
 
 
 def action_add(user_id, callback):
