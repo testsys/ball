@@ -21,7 +21,11 @@ CREATE TABLE `balloons` (
   `time_created` int(11) NOT NULL,
   `time_taken` int(11) NOT NULL DEFAULT 0,
   `time_delivered` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `event_state` (`event_id`,`state`),
+  KEY `event_volunteer` (`event_id`,`volunteer_id`,`state`),
+  KEY `event_problem` (`event_id`,`problem_id`),
+  KEY `event_team` (`event_id`,`team_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `events`;

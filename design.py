@@ -1,6 +1,6 @@
 
 from flask import render_template_string
-import cgi
+from html import escape
 
 import lang
 
@@ -8,12 +8,15 @@ import lang
 def __wrap(s, raw=[]):
     return lambda **kwargs: render_template_string(
         s,
-        **{k: (v if k in raw else cgi.escape(v)) for k, v in kwargs.items()}
+        **{k: (v if k in raw else escape(v)) for k, v in kwargs.items()}
     )
 
 
 link = __wrap('<a href="{{url}}">{{label}}</a>\n')
-text = __wrap('{{text}}\n')
+def text(*, text):
+    text = escape(text)
+    return text + "\n"
+# text = __wrap('{{text}}\n')
 event_link = __wrap('<div><a href="{{url}}">{{name}}</a></div>\n')
 event_nolink = __wrap('<div><span>{{name}}</span></div>\n')
 event_add_form = __wrap(
@@ -28,12 +31,17 @@ error = __wrap(
     '<h2 style="color: red;">{{message}}</h2>\n'
     '<p><a href="{{back}}">' + lang.lang['back'] + '</a></p>\n'
 )
-action_link = __wrap(
-    '<form action="action{{token}}" id="form{{token}}" method="POST">' +
-       '<span class="link" onclick="document.getElementById(\'form{{token}}\').submit();">' +
-       '{{label}}</span>' +
-    '</form>'
-)
+
+def action_link(*, token, label):
+    token = escape(token)
+    label = escape(label)
+    return (
+        '<form action="action%s" id="form%s" method="POST">' +
+            '<span class="link" onclick="document.getElementById(\'form%s\').submit();">' +
+            '%s</span>' +
+        '</form>'
+    ) % (token, token, token, label)
+
 action_link_raw = __wrap(
     '<form action="action{{token}}" id="form{{token}}" method="POST">' +
        '<span class="link" onclick="document.getElementById(\'form{{token}}\').submit();">' +
@@ -73,18 +81,30 @@ problem = __wrap(
     '<a href="{{url}}">{{letter}}</a>({{count}})</td>\n',
     raw={'color_token'}
 )
-fts = __wrap('<b>' + lang.lang['event_queue_first_solved'] + '</b> {{text}}')
-fts_no = __wrap('{{text}}')
-balloon = __wrap(
-    '<tr class="balloons_row">'
-    '<td class="balloons_balloon_color"' +
-    ' style="background-color: {{color}}">{{color_token}}</td>' +
-    '<td>{{problem_comment}} <b>{{letter}}</b></td>' +
-    '<td>{{team_comment}} <b>{{team_short}}</b>: <span style="color: gray;">{{team}}</span></td>' +
-    '<td>{{state}}</td>' +
-    '<tr>\n',
-    raw={'color_token', 'problem_comment', 'team_comment', 'state'}
-)
+
+def fts(*, text):
+    text = escape(text)
+    return ('<b>' + lang.lang['event_queue_first_solved'] + '</b> %s ') % text
+
+def fts_no(*, text):
+    text = escape(text)
+    return "%s " % text
+
+def balloon(*, color, color_token, problem_comment, letter, team_comment, team_short, team, state):
+    color = escape(color)
+    letter = escape(letter)
+    team_short = escape(team_short)
+    team = escape(team)
+    return (
+        '<tr class="balloons_row">'
+        '<td class="balloons_balloon_color"' +
+        ' style="background-color: %s">%s</td>' +
+        '<td>%s <b>%s</b></td>' +
+        '<td>%s <b>%s</b>: <span style="color: gray;">%s</span></td>' +
+        '<td>%s</td>' +
+        '<tr>\n'
+    ) % (color, color_token, problem_comment, letter, team_comment, team_short, team, state)
+
 balloons = __wrap(
     '<h2>{{header}}</h2>\n' +
     '<table style="width: 100%;">\n' +

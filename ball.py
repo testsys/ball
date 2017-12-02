@@ -1,20 +1,26 @@
 #!/usr/bin/env python3
 
 from flask import Flask, abort, render_template, request, make_response, redirect
+import datetime
 import functools
 import urllib
 import logging
-
 import sys
 
 import auth
 import lang
 import design
 import config
+from balloon import Balloon
 from db import DB
 
 ball = Flask(__name__)
 actions = {}
+
+
+def debug(*args, **kvargs):
+    print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, **kvargs)
+
 
 def action_add(user_id, callback):
     token = auth.create_token(user_id, add_random=True)
@@ -151,33 +157,33 @@ def do_drop(event_id, balloon_id):
 
 def get_state_str_current(event_id, b, *, user_id):
     state_str = design.action_link(
-        token=action_add(user_id, functools.partial(do_done, event_id, b['id'], user_id)),
+        token=action_add(user_id, functools.partial(do_done, event_id, b.id, user_id)),
         label=lang.lang['event_queue_done']
     ) + ' ' + design.action_link(
-        token=action_add(user_id, functools.partial(do_drop, event_id, b['id'])),
+        token=action_add(user_id, functools.partial(do_drop, event_id, b.id)),
         label=lang.lang['event_queue_drop']
     )
     return state_str
 
 
 def get_state_str_queue(event_id, b, *, user_id):
-    state_str = ''
-    if b['state'] >= 0 and b['state'] < 100:
+    state_str = None
+    if b.state >= 0 and b.state < 100:
         state_str = (
             design.text(text=lang.lang['balloon_state_wanted']) + ' ' +
             design.action_link(
-                token=action_add(user_id, functools.partial (do_take, event_id, b['id'], user_id)),
+                token=action_add(user_id, functools.partial (do_take, event_id, b.id, user_id)),
                 label=lang.lang['event_queue_take']
             )
         )
-    elif b['state'] < 200:
+    elif b.state < 200:
         state_str = design.text(text=lang.lang['balloon_state_carrying'])
-    elif b['state'] < 300:
+    elif b.state < 300:
         state_str = design.text(text=lang.lang['balloon_state_delivered'])
     else:
         state_str = design.text(lang.lang['balloon_state_error'])
-    if str(b['volunteer_id']) != '':
-        state_str += ' ' + design.volunteer(id=str(b['volunteer_id']))
+    if str(b.volunteer_id) != '':
+        state_str += ' ' + design.volunteer(id=str(b.volunteer_id))
     return state_str
 
 
@@ -245,17 +251,17 @@ def event(event_id):
             return ''
         balloons_html = []
         for b in balloons:
-            p = problems[problems_map[b['problem_id']]]
-            t = teams[teams_map[b['team_id']]]
+            p = problems[problems_map[b.problem_id]]
+            t = teams[teams_map[b.team_id]]
             state_str = get_state_str(event_id, b, user_id=user_id)
             balloons_text = '&nbsp;'
             if not p['color']:
                 balloons_text = '?'
-            if first_to_solve[b['problem_id']] == b['id']:
+            if first_to_solve[b.problem_id] == b.id:
                 x = design.fts(text=lang.lang['event_queue_problem'])
             else:
                 x = design.fts_no(text=lang.lang['event_queue_problem'])
-            if b['team_id'] in first_solved and first_solved[b['team_id']] == b['id']:
+            if b.team_id in first_solved and first_solved[b.team_id] == b.id:
                 y = design.fts(text=lang.lang['event_queue_team'])
             else:
                 y = design.fts_no(text=lang.lang['event_queue_team'])
@@ -276,16 +282,19 @@ def event(event_id):
         return balloons_html
 
     balloons = db.balloons_my(event_id, user_id)
+    balloons = list (map (Balloon, balloons))
     content += get_balloons_html(
         lang.lang['event_header_your_queue'],
         get_state_str_current, balloons
     )
     balloons = db.balloons_new(event_id)
+    balloons = list (map (Balloon, reversed (balloons)))
     content += get_balloons_html(
         lang.lang['event_header_offer'],
-        get_state_str_queue, list (reversed (balloons))
+        get_state_str_queue, balloons
     )
     balloons = db.balloons_old(event_id)
+    balloons = list (map (Balloon, balloons))
     content += get_balloons_html(
         lang.lang['event_header_queue'],
         get_state_str_queue, balloons
