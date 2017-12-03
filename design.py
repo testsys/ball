@@ -26,7 +26,8 @@ def event_link(*, url, name):
     name = escape(name)
     return '<div><a href="%s">%s</a></div>\n' % (url, name)
 
-def event_nolink(*, name):
+def event_nolink(*, url, name):
+    # url is ignored
     name = escape(name)
     return '<div><span>%s</span></div>\n' % name
 
@@ -165,7 +166,7 @@ def auth_ok(*, user):
 def auth_link(*, url, label):
     url = escape(url)
     label = escape(label)
-    return '<div><a href="url">label</a></div>\n' % (url, label)
+    return '<div><a href="%s">%s</a></div>\n' % (url, label)
 
 def volunteer(*, id):
     id = escape(id)
