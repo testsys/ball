@@ -3,7 +3,7 @@
 from flask import Flask, abort, render_template, request, make_response, redirect
 import datetime
 import functools
-import urllib
+import json, urllib
 import logging
 import sys
 
@@ -166,6 +166,26 @@ def get_state_str_current(event_id, b, *, user_id):
     return state_str
 
 
+volunteer_cache = {}
+def volunteer_get( volunteer_id ):
+    if volunteer_id in volunteer_cache:
+        return volunteer_cache[volunteer_id]
+    if volunteer_id.startswith('vk:'):
+        vk_id = int (volunteer_id[3:])
+        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
+        res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        if 'error' in res:
+            return None
+        res = res['response'][0]
+        print (res)
+        volunteer_cache[volunteer_id] = (
+            "%s %s" % (res['first_name'], res['last_name']),
+            "https://vk.com/id%s" % res['uid']
+        )
+        return volunteer_cache[volunteer_id]
+    return None
+
+
 def get_state_str_queue(event_id, b, *, user_id):
     state_str = None
     if b.state >= 0 and b.state < 100:
@@ -183,7 +203,15 @@ def get_state_str_queue(event_id, b, *, user_id):
     else:
         state_str = design.text(lang.lang['balloon_state_error'])
     if str(b.volunteer_id) != '':
-        state_str += ' ' + design.volunteer(id=str(b.volunteer_id))
+        volunteer = volunteer_get (str(b.volunteer_id))
+        if volunteer is None:
+            state_str += ' ' + design.volunteer(id=str(b.volunteer_id))
+        else:
+            volunteer_name, volunteer_link = volunteer
+            state_str += ' ' + design.volunteer_ext(
+                name=volunteer_name,
+                url=volunteer_link
+            )
     return state_str
 
 
