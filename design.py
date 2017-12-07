@@ -70,9 +70,7 @@ def action_link_mk2(*, arguments, label, raw=False):
         '<form action="action_mk2" id="form%d" method="POST">' +
             '<input type="hidden" name="token" value="" />' +
             '%s' +
-            '<span class="link" onclick="balloon_submit_form(\'form%d\');">' +
-            # '<span class="link" onclick="document.getElementById(\'form%s\').submit();">' +
-            '%s</span>' +
+            '<span class="link" onclick="balloon_submit_form(\'form%d\');">%s</span>' +
         '</form>'
     ) % (
         form_id,
@@ -82,6 +80,29 @@ def action_link_mk2(*, arguments, label, raw=False):
         ]),
         form_id,
         label
+    )
+
+def action_form_color(*, arguments, default):
+    global form_id
+    form_id += 1
+    return (
+        '<form action="action_mk2" id="form%d" method="POST">\n' +
+            '<input type="hidden" name="token" value="" />\n' +
+            '%s' +
+            '<span>%s</span>\n' +
+            '<input type="color" name="value" value="%s" />\n' +
+            '<span class="link" onclick="balloon_submit_form(\'form%d\');">%s</span>\n' +
+        '</form>\n'
+    ) % (
+        form_id,
+        ''.join([
+            '<input type="hidden" name="%s" value="%s" />\n' % (escape(str(k)), escape(str(v)))
+            for k, v in arguments.items()
+        ]),
+        lang.lang['color_set_new'],
+        default,
+        form_id,
+        lang.lang['color_set_commit']
     )
 
 def action_link_raw(*, token, label):

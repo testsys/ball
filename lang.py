@@ -35,6 +35,8 @@ lang_ru = {
     'header_volunteers': 'Волонтёры',
     'volunteer_from_config': 'Убрать доступ невозможно',
 
+    'color_set_new': 'Новый цвет:',
+    'color_set_commit': 'Установить',
     'problem_cur_color': 'Цвет сейчас',
     'problem_set_color': 'Установить цвет',
 

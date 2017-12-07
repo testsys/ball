@@ -229,11 +229,6 @@ def problem(problem_id):
         return redirect(config.base_url)
     problem_id = int(problem_id)
     content = ''
-    colors = [
-        '#f9ff0f', '#000000', '#f6ab23', '#cc0000',
-        '#77ee77', '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
-        '#0047AB', '#6699ff', '#FFFFF'
-    ]
     db = DB()
     problems = [db.problem(problem_id)]
     db.close()
@@ -241,18 +236,13 @@ def problem(problem_id):
     content += problems_html
     colors_html = ''
     colors_html += design.problem_color(color=problems[0]['color'])
-    for c in colors:
-        colors_html += design.color_select(
-            link=design.action_link_mk2 (
-                # token=action_add(user_id, functools.partial(do_set_color, problem_id, c)),
-                arguments={
-                    'method': 'color_set',
-                    'problem': problem_id,
-                    'value': c
-                },
-                label=design.color_select_label(color=c), raw=True
-            )
-        )
+    colors_html += design.action_form_color(
+        arguments={
+            'method': 'color_set',
+            'problem': problem_id
+        },
+        default=problems[0]['color']
+    )
     content += colors_html
     response = make_response (render_template(
         'template.html',
