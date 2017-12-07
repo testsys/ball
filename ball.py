@@ -22,6 +22,7 @@ def debug(*args, **kvargs):
     print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, file=sys.stderr, **kvargs)
 
 
+# deprecated
 def action_add(user_id, callback):
     token = auth.create_token(user_id, add_random=True)
     actions[token] = (user_id, callback)
@@ -39,6 +40,37 @@ def do_action(token):
     if action_user != user_id:
         return abort(403)
     return action_callback()
+
+
+def action_color_set( *, problem, value ):
+    problem_id = int(problem)
+    db = DB()
+    db.problem_color(problem_id, value)
+    db.close(commit=True)
+    return redirect(config.base_url + '/problem' + str(problem_id))
+
+
+@ball.route('/action_mk2', methods=['POST'])
+def do_action_mk2():
+    user_id, auth_html = check_auth(request)
+    if user_id is None or user_id not in config.allowed_users:
+        return redirect(config.base_url, code=307)
+    token = request.form['token']
+    token_cookie = request.cookies.get('ball_token')
+    if token != token_cookie or len(token) < 10:
+        print ("token mismatch: %s vs %s" % (repr (token), repr (token_cookie)))
+        return abort(403);
+    try:
+        callback = {
+            'color_set': action_color_set
+        }[request.form['method']]
+    except KeyError:
+        print ("unknown action method: '%s'" % request.form['method'])
+        return abort(404)
+    return callback(**{
+        k: v for k, v in request.form.items()
+        if k not in ['method', 'token']
+    })
 
 
 def do_add_event():
@@ -80,13 +112,6 @@ def index():
     )
 
 
-def do_set_color(problem_id, color):
-    db = DB()
-    db.problem_color(problem_id, color)
-    db.close(commit=True)
-    return redirect(config.base_url + '/problem' + str(problem_id))
-
-
 @ball.route('/problem<int:problem_id>')
 def problem(problem_id):
     user_id, auth_html = check_auth(request)
@@ -96,8 +121,9 @@ def problem(problem_id):
     content = ''
     colors = [
         '#f9ff0f', '#000000', '#f6ab23', '#cc0000',
-        '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
-        '#0047AB', '#FFFFF']
+        '#77ee77', '#03C03C', '#e1379e', '#9e37e1', '#2FACAC',
+        '#0047AB', '#6699ff', '#FFFFF'
+    ]
     db = DB()
     problems = [db.problem(problem_id)]
     db.close()
@@ -107,18 +133,27 @@ def problem(problem_id):
     colors_html += design.problem_color(color=problems[0]['color'])
     for c in colors:
         colors_html += design.color_select(
-            link=design.action_link_raw (
-                token=action_add(user_id, functools.partial(do_set_color, problem_id, c)),
-                label=design.color_select_label(color=c)
+            link=design.action_link_mk2 (
+                # token=action_add(user_id, functools.partial(do_set_color, problem_id, c)),
+                arguments={
+                    'method': 'color_set',
+                    'problem': problem_id,
+                    'value': c
+                },
+                label=design.color_select_label(color=c), raw=True
             )
         )
     content += colors_html
-    return render_template(
+    response = make_response (render_template(
         'template.html',
         title=problems[0]['letter'],
         auth=auth_html,
         base=config.base_url,
-        content=content)
+        content=content
+    ))
+    token = auth.create_token(user_id, add_random=True)
+    response.set_cookie('ball_token', token)
+    return response
 
 
 def do_take(event_id, balloon_id, user_id):

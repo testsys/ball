@@ -7,6 +7,22 @@
     <link rel="icon" href="https://acm.math.spbu.ru/catlogo.ico" type="image/png">
     <title>{{ title }}</title>
     {% endblock %}
+    <script type="text/javascript">
+    //<![CDATA[
+        balloon_submit_form = function ( form_id ) {
+            var form = document.getElementById (form_id);
+            var cookies = decodeURIComponent (document.cookie).split (';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i];
+                while (cookie.charAt (0) == ' ')
+                    cookie = cookie.substring (1);
+                if (cookie.indexOf ("ball_token=") == 0)
+                     form.token.value = cookie.substring ("ball_token=".length, cookie.length);
+            }
+            return form.submit ();
+        };
+    //]]>
+    </script>
   </head>
   <body style="width: 1100px;">
     <h1>{{ title }}</h1>

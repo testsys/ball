@@ -60,6 +60,30 @@ def action_link(*, token, label):
         '</form>'
     ) % (token, token, token, label)
 
+form_id = 0
+def action_link_mk2(*, arguments, label, raw=False):
+    global form_id
+    if not raw:
+        label = escape(label)
+    form_id += 1
+    return (
+        '<form action="action_mk2" id="form%d" method="POST">' +
+            '<input type="hidden" name="token" value="" />' +
+            '%s' +
+            '<span class="link" onclick="balloon_submit_form(\'form%d\');">' +
+            # '<span class="link" onclick="document.getElementById(\'form%s\').submit();">' +
+            '%s</span>' +
+        '</form>'
+    ) % (
+        form_id,
+        ''.join([
+            '<input type="hidden" name="%s" value="%s" />' % (escape(str(k)), escape(str(v)))
+            for k, v in arguments.items()
+        ]),
+        form_id,
+        label
+    )
+
 def action_link_raw(*, token, label):
     token = escape(token)
     return (
