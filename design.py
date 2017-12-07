@@ -122,14 +122,6 @@ def monitor_link(*, url):
         lang.lang['event_header_monitor_link'] + '</a></div>\n'
     ) % url
 
-def problems(*, problems):
-    return (
-        '<h2>' + lang.lang['event_header_problems'] + '</h2>\n' +
-        '<table style="width: 100%%;"><tr>' +
-        '%s' +
-        '</tr></table>\n'
-    ) % problems
-
 def problem(*, color, color_token, url, letter, count):
     color = escape(color)
     letter = escape(letter)
@@ -156,23 +148,43 @@ def balloon(*, color, color_token, problem_comment, letter, team_comment, team_s
     team_short = escape(team_short)
     team = escape(team)
     return (
-        '<tr class="balloons_row">'
+        '<tr class="balloons_row">' +
         '<td class="balloons_balloon_color"' +
         ' style="background-color: %s">%s</td>' +
         '<td>%s <b>%s</b></td>' +
         '<td>%s <b>%s</b>: <span style="color: gray;">%s</span></td>' +
         '<td>%s</td>' +
-        '<tr>\n'
+        '</tr>\n'
     ) % (color, color_token, problem_comment, letter, team_comment, team_short, team, state)
 
-def balloons(*, header, balloons):
+def volunteer_access(*, name, change):
+    return (
+        '<tr>' +
+        '<td>%s</td>' +
+        '<td style="color: green; size: 8pt;">Доступ разрешён</td>' +
+        '<td>%s</td>' +
+        '</tr>\n'
+    ) % (name, change)
+
+def table(*, header, content):
     header = escape(header)
     return (
         '<h2>%s</h2>\n' +
         '<table style="width: 100%%;">\n' +
         '%s' +
         '</table>\n'
-    ) % (header, balloons)
+    ) % (header, content)
+
+def problems(*, problems):
+    return (
+        '<h2>' + lang.lang['event_header_problems'] + '</h2>\n' +
+        '<table style="width: 100%%;"><tr>' +
+        '%s' +
+        '</tr></table>\n'
+    ) % problems
+
+def volunteers(*, volunteers):
+    return table(content=volunteers, header=lang.lang['header_volunteers'])
 
 def auth(*, url):
     url = escape(url)

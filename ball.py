@@ -50,6 +50,25 @@ def action_color_set( *, problem, value ):
     return redirect(config.base_url + '/problem' + str(problem_id))
 
 
+volunteer_cache = {}
+def volunteer_get( volunteer_id ):
+    if volunteer_id in volunteer_cache:
+        return volunteer_cache[volunteer_id]
+    if volunteer_id.startswith('vk:'):
+        vk_id = int (volunteer_id[3:])
+        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
+        res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        if 'error' in res:
+            return None
+        res = res['response'][0]
+        volunteer_cache[volunteer_id] = (
+            "%s %s" % (res['first_name'], res['last_name']),
+            "https://vk.com/id%s" % res['uid']
+        )
+        return volunteer_cache[volunteer_id]
+    return None
+
+
 @ball.route('/action_mk2', methods=['POST'])
 def do_action_mk2():
     user_id, auth_html = check_auth(request)
@@ -92,20 +111,57 @@ def index():
     db.close()
     if len(events) == 0:
         content = lang.lang['index_no_events']
-    if user_id is not None:
+    user_ok = user_id is not None and user_id in config.allowed_users
+    if user_ok:
         event_link = design.event_link
     else:
         event_link = design.event_nolink
     for e in events:
         if e[1]:
-            content += event_link (url=config.base_url + '/event' + str(e[0]), name=e[1])
+            content += event_link(url=config.base_url + '/event' + str(e[0]), name=e[1])
         else:
-            content += design.event_nolink (name=e[3])
-    if user_id is not None:
-        content += design.event_add_form (token=action_add (user_id, do_add_event))
+            content += design.event_nolink(name=e[3])
+    if user_ok:
+        content += design.event_add_form(token=action_add (user_id, do_add_event))
+        content += design.link(url=config.base_url + '/volunteers', label="Manage access")
     return render_template(
         'template.html',
         title=lang.lang['index_title'],
+        auth=auth_html,
+        base=config.base_url,
+        content=content
+    )
+
+
+@ball.route('/volunteers')
+def volunteers():
+    user_id, auth_html = check_auth(request)
+    if user_id not in config.allowed_users:
+        return redirect(config.base_url)
+    volunteers = []
+    for id in config.allowed_users:
+        volunteer = volunteer_get(id)
+        if volunteer is None:
+            volunteer_str = design.volunteer(id=str(id))
+        else:
+            volunteer_name, volunteer_link = volunteer
+            volunteer_str = ' ' + design.volunteer_ext(
+                name=volunteer_name,
+                url=volunteer_link
+            )
+        if id == user_id:
+            change = design.text(text=lang.lang['this_is_you'])
+        else:
+            change = degisn.text(text=lang.lang['volunteer_from_config'])
+        volunteers.append(design.volunteer_access(
+            name=volunteer_str,
+            change=change
+        ))
+    volunteers = ''.join(volunteers)
+    content = design.volunteers(volunteers=volunteers)
+    return render_template(
+        'template.html',
+        title=lang.lang['volunteers_title'],
         auth=auth_html,
         base=config.base_url,
         content=content
@@ -199,26 +255,6 @@ def get_state_str_current(event_id, b, *, user_id):
         label=lang.lang['event_queue_drop']
     )
     return state_str
-
-
-volunteer_cache = {}
-def volunteer_get( volunteer_id ):
-    if volunteer_id in volunteer_cache:
-        return volunteer_cache[volunteer_id]
-    if volunteer_id.startswith('vk:'):
-        vk_id = int (volunteer_id[3:])
-        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
-        res = json.loads(urllib.request.urlopen(api_url).read().decode())
-        if 'error' in res:
-            return None
-        res = res['response'][0]
-        print (res)
-        volunteer_cache[volunteer_id] = (
-            "%s %s" % (res['first_name'], res['last_name']),
-            "https://vk.com/id%s" % res['uid']
-        )
-        return volunteer_cache[volunteer_id]
-    return None
 
 
 def get_state_str_queue(event_id, b, *, user_id):
@@ -338,9 +374,9 @@ def event(event_id):
                 team=t['long_name'],
                 state=state_str
             ))
-        balloons_html = design.balloons(
+        balloons_html = design.table(
             header=header,
-            balloons=''.join (balloons_html)
+            content=''.join (balloons_html)
         )
         return balloons_html
 

@@ -25,6 +25,10 @@ lang_ru = {
     'index_not_authorised': 'Вы не авторизованы.',
     'index_title': 'Шарики',
 
+    'volunteers_title': 'Волонтёры',
+    'header_volunteers': 'Волонтёры',
+    'volunteer_from_config': 'Убрать доступ невозможно',
+
     'problem_cur_color': 'Цвет сейчас',
     'problem_set_color': 'Установить цвет',
 
@@ -32,6 +36,7 @@ lang_ru = {
     'error_ball_taken': 'Шарик уже зарезервирован',
 
     'back': 'Вернуться',
+    'this_is_you': 'Это вы',
 
     '': ''
 }
