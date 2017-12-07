@@ -419,7 +419,7 @@ def event(event_id):
                 state=state_str
             ))
         balloons_html = design.table(
-            header=header,
+            header=header + " (%d)" % len (balloons),
             content=''.join (balloons_html)
         )
         return balloons_html
