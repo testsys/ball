@@ -123,7 +123,7 @@ def index():
             content += design.event_nolink(name=e[3])
     if user_ok:
         content += design.event_add_form(token=action_add (user_id, do_add_event))
-        content += design.link(url=config.base_url + '/volunteers', label="Manage access")
+        content += design.link(url=config.base_url + '/volunteers', label=lang.lang['access_manage'])
     return render_template(
         'template.html',
         title=lang.lang['index_title'],
@@ -152,7 +152,7 @@ def volunteers():
         if id == user_id:
             change = design.text(text=lang.lang['this_is_you'])
         else:
-            change = degisn.text(text=lang.lang['volunteer_from_config'])
+            change = design.text(text=lang.lang['volunteer_from_config'])
         volunteers.append(design.volunteer_access(
             name=volunteer_str,
             change=change

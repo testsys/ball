@@ -25,6 +25,8 @@ lang_ru = {
     'index_not_authorised': 'Вы не авторизованы.',
     'index_title': 'Шарики',
 
+    'access_manage': 'Управление доступом',
+
     'volunteers_title': 'Волонтёры',
     'header_volunteers': 'Волонтёры',
     'volunteer_from_config': 'Убрать доступ невозможно',
