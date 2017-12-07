@@ -30,8 +30,8 @@ def action_add(user_id, callback):
 
 @ball.route('/action<string:token>', methods=['POST'])
 def do_action(token):
-    user_id, auth_html = check_auth(request)
-    if user_id is None or user_id not in config.allowed_users:
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
         return redirect(config.base_url, code=307)
     if token not in actions:
         return abort(403)
@@ -42,7 +42,21 @@ def do_action(token):
     return action_callback()
 
 
-def action_color_set( *, problem, value ):
+def action_access_grant(*, id):
+    problem_id = int(id)
+    db = DB()
+    db.volunteer_access(id, True)
+    db.close(commit=True)
+    return redirect(config.base_url + '/volunteers')
+
+def action_access_refuse(*, id):
+    problem_id = int(id)
+    db = DB()
+    db.volunteer_access(id, False)
+    db.close(commit=True)
+    return redirect(config.base_url + '/volunteers')
+
+def action_color_set(*, problem, value):
     problem_id = int(problem)
     db = DB()
     db.problem_color(problem_id, value)
@@ -51,7 +65,7 @@ def action_color_set( *, problem, value ):
 
 
 volunteer_cache = {}
-def volunteer_get( volunteer_id ):
+def volunteer_get(volunteer_id):
     if volunteer_id in volunteer_cache:
         return volunteer_cache[volunteer_id]
     if volunteer_id.startswith('vk:'):
@@ -71,8 +85,8 @@ def volunteer_get( volunteer_id ):
 
 @ball.route('/action_mk2', methods=['POST'])
 def do_action_mk2():
-    user_id, auth_html = check_auth(request)
-    if user_id is None or user_id not in config.allowed_users:
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
         return redirect(config.base_url, code=307)
     token = request.form['token']
     token_cookie = request.cookies.get('ball_token')
@@ -81,6 +95,8 @@ def do_action_mk2():
         return abort(403);
     try:
         callback = {
+            'access_grant': action_access_grant,
+            'access_refuse': action_access_refuse,
             'color_set': action_color_set
         }[request.form['method']]
     except KeyError:
@@ -104,14 +120,13 @@ def do_add_event():
 
 @ball.route('/')
 def index():
-    user_id, auth_html = check_auth(request)
+    user_id, auth_html, user_ok = check_auth(request)
     content = ''
     db = DB()
     events = db.events()
     db.close()
     if len(events) == 0:
         content = lang.lang['index_no_events']
-    user_ok = user_id is not None and user_id in config.allowed_users
     if user_ok:
         event_link = design.event_link
     else:
@@ -135,8 +150,8 @@ def index():
 
 @ball.route('/volunteers')
 def volunteers():
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
         return redirect(config.base_url)
     volunteers = []
     for id in config.allowed_users:
@@ -157,21 +172,60 @@ def volunteers():
             name=volunteer_str,
             change=change
         ))
+    db = DB()
+    for db_id, id, access in db.volunteers():
+        volunteer = volunteer_get(id)
+        if volunteer is None:
+            volunteer_str = design.volunteer(id=str(id))
+        else:
+            volunteer_name, volunteer_link = volunteer
+            volunteer_str = ' ' + design.volunteer_ext(
+                name=volunteer_name,
+                url=volunteer_link
+            )
+        if id == user_id:
+            change = design.text(text=lang.lang['this_is_you'])
+        elif access:
+            change = design.action_link_mk2(
+                arguments={
+                    'method': 'access_refuse',
+                    'id': db_id
+                },
+                label=lang.lang['access_refuse']
+            )
+        else:
+            change = design.action_link_mk2(
+                arguments={
+                    'method': 'access_grant',
+                    'id': db_id
+                },
+                label=lang.lang['access_grant']
+            )
+        volunteers.append((
+            design.volunteer_access if access else design.volunteer_noaccess
+        )(
+            name=volunteer_str,
+            change=change
+        ))
+    db.close()
     volunteers = ''.join(volunteers)
     content = design.volunteers(volunteers=volunteers)
-    return render_template(
+    response = make_response (render_template(
         'template.html',
         title=lang.lang['volunteers_title'],
         auth=auth_html,
         base=config.base_url,
         content=content
-    )
+    ))
+    token = auth.create_token(user_id, add_random=True)
+    response.set_cookie('ball_token', token)
+    return response
 
 
 @ball.route('/problem<int:problem_id>')
 def problem(problem_id):
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
         return redirect(config.base_url)
     problem_id = int(problem_id)
     content = ''
@@ -288,8 +342,8 @@ def get_state_str_queue(event_id, b, *, user_id):
 
 @ball.route('/event<int:event_id>')
 def event(event_id):
-    user_id, auth_html = check_auth(request)
-    if user_id not in config.allowed_users:
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
         return redirect(config.base_url)
     event_id = int(event_id)
     content = ''
@@ -407,22 +461,32 @@ def event(event_id):
         content=content)
 
 
+user_cache = {}
 def check_auth(request):
     auth_html = design.auth(url=config.base_url + 'auth')
     try:
         user_id = request.cookies.get('ball_user_id')
         auth_token = request.cookies.get('ball_auth_token')
     except:
-        return None, auth_html
+        return None, auth_html, False
     if not auth.check(user_id, auth_token):
-        return None, auth_html
+        return None, auth_html, False
+    #  need to invalidate cache in action_access_*
+    # if user_id in user_cache:
+    #     return user_cache[user_id]
     auth_html = design.auth_ok(user=str(user_id))
-    return user_id, auth_html
+    user_ok = user_id in config.allowed_users
+    if not user_ok:
+        db = DB()
+        user_ok = db.volunteer_get(user_id)
+        db.close(commit=True)
+    user_cache[user_id] = user_id, auth_html, user_ok
+    return user_cache[user_id]
 
 
 @ball.route('/auth')
 def method_auth():
-    user_id, auth_html = check_auth(request)
+    user_id, auth_html, user_ok= check_auth(request)
     content = design.auth_link(url=config.base_url + '/auth/vk/start', label='VK') + \
         design.auth_link(url=config.base_url + '/auth/google/start', label='Google')
     return render_template(

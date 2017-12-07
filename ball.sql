@@ -68,9 +68,12 @@ DROP TABLE IF EXISTS `volunteers`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `volunteers` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
+  `external_id` varchar(255) COLLATE utf8_bin NOT NULL DEFAULT '',
   `name` varchar(255) COLLATE utf8_bin NOT NULL,
   `hash_code` varchar(255) COLLATE utf8_bin NOT NULL,
-  PRIMARY KEY (`id`)
+  `access` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `external_id` (`external_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

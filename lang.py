@@ -26,6 +26,10 @@ lang_ru = {
     'index_title': 'Шарики',
 
     'access_manage': 'Управление доступом',
+    'access_yes': 'Доступ разрешён',
+    'access_no': 'Доступ запрещён',
+    'access_grant': 'Разрешить',
+    'access_refuse': 'Запретить',
 
     'volunteers_title': 'Волонтёры',
     'header_volunteers': 'Волонтёры',

@@ -161,7 +161,16 @@ def volunteer_access(*, name, change):
     return (
         '<tr>' +
         '<td>%s</td>' +
-        '<td style="color: green; size: 8pt;">Доступ разрешён</td>' +
+        '<td style="color: green; size: 8pt;">' + lang.lang['access_yes'] + '</td>' +
+        '<td>%s</td>' +
+        '</tr>\n'
+    ) % (name, change)
+
+def volunteer_noaccess(*, name, change):
+    return (
+        '<tr>' +
+        '<td>%s</td>' +
+        '<td style="color: red; size: 8pt;">' + lang.lang['access_no'] + '</td>' +
         '<td>%s</td>' +
         '</tr>\n'
     ) % (name, change)

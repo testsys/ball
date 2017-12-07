@@ -172,6 +172,36 @@ class DB:
             teams.append(t)
         return teams
 
+    def volunteer_get(self, id):
+        self.__cursor.execute(
+            'select `access` from `volunteers`' +
+            ' where `external_id`=%s for update',
+            [id]
+        )
+        for row in self.__cursor.fetchall():
+            return int(row[0]) != 0
+        self.__cursor.execute(
+            'insert into `volunteers` (`external_id`)' +
+            ' values (%s)',
+            [id]
+        )
+        return False
+
+    def volunteers(self):
+        self.__cursor.execute(
+            'select `id`, `external_id`, `access` from `volunteers`'
+        )
+        volunteers = []
+        for row in self.__cursor.fetchall():
+            volunteers.append(row)
+        return volunteers
+
+    def volunteer_access(self, id, value):
+        self.__cursor.execute(
+            'update `volunteers` set `access`=%s where `id`=%s',
+            [1 if value else 0, id]
+        )
+
     def fts(self, event_id, *, problem_id=None, team_id=None):
         self.__cursor.execute(
             'select id from balloons' +
