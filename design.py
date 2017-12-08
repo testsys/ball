@@ -31,17 +31,6 @@ def event_nolink(*, url=None, name):
     name = escape(name)
     return '<div><span>%s</span></div>\n' % name
 
-def event_add_form(*, token):
-    token = escape(token)
-    return (
-        '<div><form action="action%s" method="POST">' +
-        '<input type="text" placeholder="' +
-        lang.lang['index_monitor_url'] + '" name="url" />' +
-        '<input type="submit" value="' +
-        lang.lang['index_add_event'] + '" />' +
-        '</form></div>\n'
-    ) % token
-
 def error(*, message, back):
     message = escape(message)
     back = escape(back)
@@ -49,16 +38,6 @@ def error(*, message, back):
         '<h2 style="color: red;">%s</h2>\n'
         '<p><a href="%s">' + lang.lang['back'] + '</a></p>\n'
     ) % (message, back)
-
-def action_link(*, token, label):
-    token = escape(token)
-    label = escape(label)
-    return (
-        '<form action="action%s" id="form%s" method="POST">' +
-            '<span class="link" onclick="document.getElementById(\'form%s\').submit();">' +
-            '%s</span>' +
-        '</form>'
-    ) % (token, token, token, label)
 
 form_id = 0
 def action_link_mk2(*, arguments, label, raw=False):
@@ -80,6 +59,27 @@ def action_link_mk2(*, arguments, label, raw=False):
         ]),
         form_id,
         label
+    )
+
+def action_form_event(*, arguments):
+    global form_id
+    form_id += 1
+    return (
+        '<div><form action="action_mk2" id="form%d" method="POST">\n' +
+            '<input type="hidden" name="token" value="" />\n' +
+            '%s' +
+            '<input type="text" placeholder="' +
+                lang.lang['index_monitor_url'] + '" name="url" />' +
+            '<input type="button" onclick="balloon_submit_form(\'form%d\');" value="%s" />\n' +
+        '</form></div>\n'
+    ) % (
+        form_id,
+        ''.join([
+            '<input type="hidden" name="%s" value="%s" />\n' % (escape(str(k)), escape(str(v)))
+            for k, v in arguments.items()
+        ]),
+        form_id,
+        lang.lang['index_add_event']
     )
 
 def action_form_color(*, arguments, default):

@@ -18,6 +18,7 @@ CREATE TABLE `balloons` (
   `problem_id` int(11) NOT NULL,
   `volunteer_id` varchar(255) COLLATE utf8_bin NOT NULL DEFAULT '',
   `state` int(11) NOT NULL DEFAULT 0,
+  `time_local` double NOT NULL DEFAULT 0.0,
   `time_created` int(11) NOT NULL,
   `time_taken` int(11) NOT NULL DEFAULT 0,
   `time_delivered` int(11) NOT NULL DEFAULT 0,

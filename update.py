@@ -54,6 +54,7 @@ def parse_pcms(data, *, callback_ok, callback_team, callback_problem, callback_c
     else:
         raise Exception("bad contest xml: no contest found")
     callback_contest(contest.attrib['name'])
+    oks=[]
     for child in contest:
         if child.tag == 'challenge':
             for problem in child:
@@ -67,9 +68,11 @@ def parse_pcms(data, *, callback_ok, callback_team, callback_problem, callback_c
             # callback_team(child.attrib['id'], child.attrib['party'])
             for problem in child:
                 if int (problem.attrib['accepted']) == 1:
-                    callback_ok(id, problem.attrib['alias'])
+                    oks.append((id, problem.attrib['alias'], 0.001 * int(problem.attrib['time'])))
         else:
             raise NotImplementedError("parse_pcms: tag '%s'" % child.tag)
+    for ok in sorted(oks, key=lambda x: x[2]):
+        callback_ok(*ok)
 
 
 def parse_testsys(data, *, callback_ok, callback_team, callback_problem, callback_contest):
@@ -90,8 +93,8 @@ def parse_testsys(data, *, callback_ok, callback_team, callback_problem, callbac
             outcome = data[4]
             if outcome != 'OK':
                 continue
-            team_name, problem_letter = data[0], data[1]
-            callback_ok(team_name, problem_letter)
+            team_name, problem_letter, time = data[0], data[1], data[3]
+            callback_ok(team_name, problem_letter, time)
         elif mode == '@t':
             team_name, team_long_name = data[0], data[3]
             callback_team(team_name, team_long_name)
@@ -115,7 +118,7 @@ for event_id, event_url, event_name in events:
     haved_balloons = 0
     contest_dat = urllib.request.urlopen(event_url).read()
 
-    def callback_ok(team_name, problem_letter):
+    def callback_ok(team_name, problem_letter, time_local):
         global cur, balloon_cache, haved_balloons
         team_id = team_load (event_id, team_name)
         problem_id = problem_load (event_id, problem_letter)
@@ -124,9 +127,9 @@ for event_id, event_url, event_name in events:
             return
         cur.execute(
             'insert into balloons' +
-            '(event_id, problem_id, team_id, state, time_created)' +
-            ' values (%s, %s, %s, %s, %s)',
-            [event_id, problem_id, team_id, 0, int(time.time())]
+            '(event_id, problem_id, team_id, state, time_local, time_created)' +
+            ' values (%s, %s, %s, %s, %s, %s)',
+            [event_id, problem_id, team_id, 0, time_local, int(time.time())]
         )
 
     def callback_team(team_name, team_long_name):

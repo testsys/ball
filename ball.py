@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from flask import Flask, abort, render_template, request, make_response, redirect
-import datetime
 import functools
 import json, urllib
 import logging
@@ -19,27 +18,8 @@ actions = {}
 
 
 def debug(*args, **kvargs):
+    import datetime
     print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, file=sys.stderr, **kvargs)
-
-
-# deprecated
-def action_add(user_id, callback):
-    token = auth.create_token(user_id, add_random=True)
-    actions[token] = (user_id, callback)
-    return token
-
-@ball.route('/action<string:token>', methods=['POST'])
-def do_action(token):
-    user_id, auth_html, user_ok = check_auth(request)
-    if not user_ok:
-        return redirect(config.base_url, code=307)
-    if token not in actions:
-        return abort(403)
-    action_user, action_callback = actions[token]
-    del actions[token]
-    if action_user != user_id:
-        return abort(403)
-    return action_callback()
 
 
 def action_access_grant(*, id):
@@ -56,12 +36,59 @@ def action_access_refuse(*, id):
     db.close(commit=True)
     return redirect(config.base_url + '/volunteers')
 
+def action_event_add(*, url):
+    db = DB()
+    db.event_add(1, url)
+    db.close(commit=True)
+    return redirect(config.base_url)
+
 def action_color_set(*, problem, value):
     problem_id = int(problem)
     db = DB()
     db.problem_color(problem_id, value)
     db.close(commit=True)
     return redirect(config.base_url + '/problem' + str(problem_id))
+
+def action_balloon_done(*, event, balloon, volunteer):
+    event_id = int(event)
+    balloon_id = int(balloon)
+    volunteer_id = volunteer
+    db = DB()
+    db.balloon_done(balloon_id, volunteer_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
+
+def action_balloon_drop(*, event, balloon):
+    event_id = int(event)
+    balloon_id = int(balloon)
+    db = DB()
+    db.balloon_drop(balloon_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
+
+def action_balloon_take(*, event, balloon, volunteer):
+    event_id = int(event)
+    balloon_id = int(balloon)
+    volunteer_id = volunteer
+    db = DB()
+    balloon = db.balloon(balloon_id, lock=True)
+    if balloon is None:
+        return abort(404)
+    state = int (balloon[4])
+    if state >= 100:
+        content = design.error(
+            message=lang.lang['error_ball_taken'],
+            back=config.base_url + '/event' + str(event_id)
+        )
+        return render_template(
+            'template.html',
+            title=lang.lang['error'],
+            base=config.base_url,
+            content=content
+        )
+    db.balloon_take(balloon_id, volunteer_id)
+    db.close(commit=True)
+    return redirect(config.base_url + '/event' + str(event_id))
 
 
 volunteer_cache = {}
@@ -97,7 +124,11 @@ def do_action_mk2():
         callback = {
             'access_grant': action_access_grant,
             'access_refuse': action_access_refuse,
-            'color_set': action_color_set
+            'event_add': action_event_add,
+            'color_set': action_color_set,
+            'balloon_take': action_balloon_take,
+            'balloon_drop': action_balloon_drop,
+            'balloon_done': action_balloon_done,
         }[request.form['method']]
     except KeyError:
         print ("unknown action method: '%s'" % request.form['method'])
@@ -107,16 +138,6 @@ def do_action_mk2():
         if k not in ['method', 'token']
     })
 
-
-def do_add_event():
-    try:
-        event_url = request.form['url']
-    except:
-        return redirect(config.base_url)
-    db = DB()
-    db.event_add(1, event_url)
-    db.close(commit=True)
-    return redirect(config.base_url)
 
 @ball.route('/')
 def index():
@@ -137,7 +158,9 @@ def index():
         else:
             content += design.event_nolink(name=e[3])
     if user_ok:
-        content += design.event_add_form(token=action_add (user_id, do_add_event))
+        content += design.action_form_event(arguments={
+            'method': 'event_add',
+        })
         content += design.link(url=config.base_url + '/volunteers', label=lang.lang['access_manage'])
     return render_template(
         'template.html',
@@ -256,46 +279,21 @@ def problem(problem_id):
     return response
 
 
-def do_take(event_id, balloon_id, user_id):
-    db = DB()
-    balloon = db.balloon(balloon_id, lock=True)
-    if balloon is None:
-        return abort(404)
-    state = int (balloon[4])
-    if state >= 100:
-        content = design.error(
-            message=lang.lang['error_ball_taken'],
-            back=config.base_url + '/event' + str(event_id)
-        )
-        return render_template(
-            'template.html',
-            title=lang.lang['error'],
-            base=config.base_url,
-            content=content
-        )
-    db.balloon_take(balloon_id, user_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-def do_done(event_id, balloon_id, user_id):
-    db = DB()
-    db.balloon_done(balloon_id, user_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-def do_drop(event_id, balloon_id):
-    db = DB()
-    db.balloon_drop(balloon_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-
 def get_state_str_current(event_id, b, *, user_id):
-    state_str = design.action_link(
-        token=action_add(user_id, functools.partial(do_done, event_id, b.id, user_id)),
+    state_str = design.action_link_mk2(
+        arguments={
+            'method': 'balloon_done',
+            'event': event_id,
+            'balloon': b.id,
+            'volunteer': user_id
+        },
         label=lang.lang['event_queue_done']
-    ) + ' ' + design.action_link(
-        token=action_add(user_id, functools.partial(do_drop, event_id, b.id)),
+    ) + ' ' + design.action_link_mk2(
+        arguments={
+            'method': 'balloon_drop',
+            'event': event_id,
+            'balloon': b.id
+        },
         label=lang.lang['event_queue_drop']
     )
     return state_str
@@ -306,8 +304,13 @@ def get_state_str_queue(event_id, b, *, user_id):
     if b.state >= 0 and b.state < 100:
         state_str = (
             design.text(text=lang.lang['balloon_state_wanted']) + ' ' +
-            design.action_link(
-                token=action_add(user_id, functools.partial (do_take, event_id, b.id, user_id)),
+            design.action_link_mk2(
+                arguments={
+                    'method': 'balloon_take',
+                    'event': event_id,
+                    'balloon': b.id,
+                    'volunteer': user_id
+                },
                 label=lang.lang['event_queue_take']
             )
         )
@@ -349,7 +352,8 @@ def event(event_id):
         'state': e[2],
         'url': e[3]}
     event_html = ''
-    event_html += design.monitor_link(url=event['url'])
+    # event_html += design.monitor_link(url=event['url'])
+    event_html += design.monitor_link(url=config.base_url + '/event%d/monitor' % event_id)
     content += event_html
 
     problems = db.problems(event_id)
@@ -449,6 +453,32 @@ def event(event_id):
         title=event['name'],
         base=config.base_url,
         content=content)
+
+
+@ball.route('/event<int:event_id>/monitor')
+def event_monitor(event_id):
+    user_id, auth_html, user_ok = check_auth(request)
+    if not user_ok:
+        return redirect(config.base_url)
+    event_id = int(event_id)
+    db = DB()
+    try:
+        e = db.event(event_id)
+    except KeyError:
+        return redirect(config.base_url)
+    event = {
+        'name': e[1],
+        'state': e[2],
+        'url': e[3]
+    }
+    content = 'TODO'
+    db.close()
+    return render_template(
+        'template.html',
+        title=event['name'],
+        base=config.base_url,
+        content=content
+    )
 
 
 user_cache = {}
