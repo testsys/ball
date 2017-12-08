@@ -485,7 +485,6 @@ def event_standings(event_id):
         team_row = []
         for p in problems:
             key = (t['id'], p['id'])
-            print (key, oks.get(key, None))
             if key in oks:
                 ok_id, time = oks[key]
                 team_row.append(design.standings_yes(
@@ -496,11 +495,15 @@ def event_standings(event_id):
                 penalty += int(time / 60) # TODO: incorrect: does not assume previous attempts
             else:
                 team_row.append(design.standings_nope())
-        teams.append ([t['long_name'], ''.join(team_row), score, penalty, True, False])
+        teams.append ([t['long_name'], ''.join(team_row), score, penalty, True, False, 1])
 
     teams = list(sorted(teams, key=lambda t: (-t[2], t[3])))
     for i in range(1, len(teams)):
         teams[i][4] = not teams[i - 1][4]
+        if teams[i][2] == teams[i - 1][2] and teams[i][3] == teams[i - 1][3]:
+            teams[i][6] = teams[i - 1][6]
+        else:
+            teams[i][6] = i + 1
     for i in range(len(teams) - 2, -1, -1):
         if teams[i][2] == teams[i + 1][2]:
             teams[i][5] = teams[i + 1][5]
@@ -508,13 +511,13 @@ def event_standings(event_id):
             teams[i][5] = not teams[i + 1][5]
 
     teams_list = []
-    for name, problems, score, penalty, even, block_even in teams:
+    for name, problems, score, penalty, even, block_even, rank in teams:
         teams_list.append(design.standings_team(
             row=even,
             block=block_even,
             name=name,
             problems=problems,
-            rank=1,
+            rank=rank,
             score=score,
             penalty=penalty
         ))
