@@ -2,6 +2,7 @@
 from flask import render_template_string
 from html import escape
 
+from miscellaneous import *
 import lang
 
 
@@ -30,6 +31,10 @@ def event_nolink(*, url=None, name):
     # url is ignored
     name = escape(name)
     return '<div><span>%s</span></div>\n' % name
+
+@arguments(message=escape)
+def warning(*, message):
+    return '<h2 style="color: red;">%s</h2>\n' % message
 
 def error(*, message, back):
     message = escape(message)
@@ -136,12 +141,59 @@ def color_select_label(*, color):
         ' <b>%s</b></span>'
     ) % (color, color)
 
-def monitor_link(*, url):
+def standings_link(*, url):
     url = escape(url)
     return (
         '<div><a href="%s">' +
         lang.lang['event_header_monitor_link'] + '</a></div>\n'
     ) % url
+
+@arguments(name_full=escape, name_short=escape)
+def standings_problem(*, name_full, name_short):
+    return (
+        '<th class="pcms pcms_problem" title="%s">%s</th>'
+    ) % (name_full, name_short)
+
+def standings_nope():
+    return '<td class="pcms">.</td>'
+
+@arguments(time=int, fts=bool)
+def standings_yes(*, time, fts):
+    return (
+        '<td class="pcms"><i class="pcms%s">+<s class="pcms"><br />%02d:%02d</s></i></td>'
+    ) % (
+        ' pcms_fts' if fts else '',
+        time // 60, time % 60
+    )
+
+@arguments(name=escape, row=bool, block=bool, problems=None, rank=int, score=int, penalty=int)
+def standings_team(*, row, block, name, problems, rank, score, penalty):
+    return (
+        '<tr class="pcms_row%d%d">'+
+        '<td class="pcms pcms_rankl">%d</td>' +
+        '<td class="pcms pcms_party">%s</td>'
+        '%s' +
+        '<td class="pcms">%d</td>' +
+        '<td class="pcms pcms_penalty">%d</td>' +
+        '</tr>'
+    ) % (
+        1 if block else 0,
+        1 if row else 0,
+        rank, name, problems, score, penalty
+    )
+
+def standings_table(*, header, body):
+    return (
+        '<table class="pcms_standings"><thead><tr>' +
+        '<th class="pcms pcms_rankl">' + lang.lang['standings_rank'] + '</th>' +
+        '<th class="pcms pcms_party">' + lang.lang['standings_team'] + '</th>' +
+        '%s' +
+        '<th class="pcms pcms_solved">' + lang.lang['standings_solved'] + '</th>' +
+        '<th class="pcms pcms_penalty">' + lang.lang['standings_penalty'] + '</th>' +
+        '</tr></thead><tbody>' +
+        '%s' +
+        '</tbody></table>'
+    ) % (header, body)
 
 def problem(*, color, color_token, url, letter, count):
     color = escape(color)

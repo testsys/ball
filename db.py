@@ -68,7 +68,7 @@ class DB:
     def problems(self, event_id):
         problems = []
         self.__cursor.execute(
-            'select id, letter, color from problems' +
+            'select id, letter, color, name from problems' +
             ' where event_id=%s',
             [event_id]
         )
@@ -76,7 +76,8 @@ class DB:
             p = {
                 'id': row[0],
                 'letter': row[1],
-                'color': row[2]
+                'color': row[2],
+                'name': row[3]
             }
             problems.append(p)
         return problems
@@ -89,7 +90,7 @@ class DB:
 
     def __balloons_filter(self, event_id, where, values=[]):
         fields = ', '.join(
-            ['id', 'problem_id', 'team_id', 'volunteer_id', 'state']
+            ['id', 'problem_id', 'team_id', 'volunteer_id', 'state', 'time_local']
         )
         self.__cursor.execute(
             'select ' + fields +
@@ -100,11 +101,12 @@ class DB:
         balloons = []
         for row in self.__cursor.fetchall():
             b = {
-                'id': row[0],
-                'problem_id': row[1],
-                'team_id': row[2],
+                'id': int(row[0]),
+                'problem_id': int(row[1]),
+                'team_id': int(row[2]),
                 'volunteer_id': row[3],
-                'state': int(row[4])
+                'state': int(row[4]),
+                'time_local': float(row[5])
             }
             balloons.append(b)
         return balloons
@@ -118,6 +120,9 @@ class DB:
         )
         for row in self.__cursor.fetchall():
             return row
+
+    def balloons(self, event_id):
+        return self.__balloons_filter(event_id, '')
 
     def balloons_new(self, event_id):
         return self.__balloons_filter(event_id, 'and state<100')

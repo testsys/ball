@@ -65,3 +65,95 @@ span.link:hover {
   cursor: pointer;
 }
 
+table.pcms_standings {
+    margin-left: auto;
+    margin-right: auto;
+    border-collapse: collapse;
+    font-family: serif;
+    max-width: 98vw;
+}
+th.pcms {
+	background-color: #F9F9F0;
+}
+th.pcms_solved {
+    text-align: center;
+    width: 2em;
+}
+th.pcms_penalty {
+    text-align: center;
+    padding-right: 10pt;
+    width: 2em;
+}
+th.pcms_party {
+    text-align: left;
+    padding-left: 10pt;
+}
+th.pcms_rankl {
+    text-align: center;
+    padding-left: 10pt;
+    width: 2em;
+}
+th.pcms_problem {
+    text-align: center;
+    width: 2em;
+}
+td.pcms {
+    text-align: center;
+}
+td.pcms_solved {
+    text-align: right;
+}
+td.pcms_penalty {
+    text-align: right;
+    padding-right: 10pt;
+}
+td.pcms_party {
+    text-align: left;
+    padding-left: 10pt;
+}
+td.pcms_partyOther { /* not used? */
+    text-align: left;
+    padding-left: 10pt;
+    color: grey;
+}
+td.pcms_rankl {
+    text-align: right;
+    padding-left: 10pt;
+    padding-right: 10pt;
+}
+td.pcms_problem {
+    text-align: center;
+}
+b.pcms {
+    color: #c06060;
+    font-weight: normal;
+}
+i.pcms {
+    color: green;
+    font-style: normal;
+}
+em.pcms {
+    color: blue;
+    background-color: yellow;
+    font-style: normal;
+}
+i.pcms_fts {
+    display: block;
+    background-color: #c0ffc0;
+    font-style: normal;
+    width: 100%;
+    height: 100%;
+}
+s.pcms {
+    font-style: normal;
+    text-decoration: none;
+    font-size: x-small;
+}
+tr.pcms_row00 { background-color: #f8f8f8; }
+tr.pcms_row01 { background-color: #ffffff; }
+tr.pcms_row10 { background-color: #c8e8f8; }
+tr.pcms_row11 { background-color: #d0f0ff; }
+
+table.pcms_standings > thead { border-bottom: solid 1px silver; }
+table.pcms_standings > tfoot { border-top:    solid 1px silver; }
+

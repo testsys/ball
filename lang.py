@@ -40,8 +40,14 @@ lang_ru = {
     'problem_cur_color': 'Цвет сейчас',
     'problem_set_color': 'Установить цвет',
 
+    'standings_rank': 'Место',
+    'standings_team': 'Команда',
+    'standings_solved': '=',
+    'standings_penalty': 'Штраф',
+
     'error': 'Ошибка',
     'error_ball_taken': 'Шарик уже зарезервирован',
+    'warning_no_penalty_attempts': 'Порядок команд может быть неверным потому что не учитываются штрафные попытки.',
 
     'back': 'Вернуться',
     'this_is_you': 'Это вы',

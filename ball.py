@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 from flask import Flask, abort, render_template, request, make_response, redirect
-import functools
 import json, urllib
 import logging
-import sys
 
+from miscellaneous import *
 import auth
 import lang
 import design
@@ -17,97 +16,66 @@ ball = Flask(__name__)
 actions = {}
 
 
-def debug(*args, **kvargs):
-    import datetime
-    print (datetime.datetime.strftime(datetime.datetime.now(), "[debug %Y-%m-%d %H:%M:%S.%f ?TZ]"), *args, file=sys.stderr, **kvargs)
+def page(*, title, content):
+    return render_template(
+        'template.html',
+        title=title,
+        base=config.base_url,
+        content=content
+    )
+
+def make_url(suffix=""):
+    return config.base_url + "/" + suffix
 
 
-def action_access_grant(*, id):
-    problem_id = int(id)
-    db = DB()
+# actions: methods that modify something
+
+@arguments(None, id=int)
+def action_access_grant(db, *, id):
     db.volunteer_access(id, True)
-    db.close(commit=True)
-    return redirect(config.base_url + '/volunteers')
+    return redirect(make_url('volunteers'))
 
-def action_access_refuse(*, id):
-    problem_id = int(id)
-    db = DB()
+@arguments(None, id=int)
+def action_access_refuse(db, *, id):
     db.volunteer_access(id, False)
-    db.close(commit=True)
-    return redirect(config.base_url + '/volunteers')
+    return redirect(make_url('volunteers'))
 
-def action_event_add(*, url):
-    db = DB()
+@arguments(None, url=str)
+def action_event_add(db, *, url):
     db.event_add(1, url)
-    db.close(commit=True)
     return redirect(config.base_url)
 
-def action_color_set(*, problem, value):
-    problem_id = int(problem)
-    db = DB()
-    db.problem_color(problem_id, value)
-    db.close(commit=True)
-    return redirect(config.base_url + '/problem' + str(problem_id))
+@arguments(None, problem=int, value=str)
+def action_color_set(db, *, problem, value):
+    db.problem_color(problem, value)
+    return redirect(make_url("problem%d" % problem))
 
-def action_balloon_done(*, event, balloon, volunteer):
-    event_id = int(event)
-    balloon_id = int(balloon)
-    volunteer_id = volunteer
-    db = DB()
-    db.balloon_done(balloon_id, volunteer_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
+@arguments(None, event=int, balloon=int, volunteer=str)
+def action_balloon_done(db, *, event, balloon, volunteer):
+    db.balloon_done(balloon, volunteer)
+    return redirect(make_url("event%d" % event))
 
-def action_balloon_drop(*, event, balloon):
-    event_id = int(event)
-    balloon_id = int(balloon)
-    db = DB()
-    db.balloon_drop(balloon_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
+@arguments(None, event=int, balllon=int)
+def action_balloon_drop(db, *, event, balloon):
+    db.balloon_drop(balloon)
+    return redirect(make_url("event%d" % event))
 
-def action_balloon_take(*, event, balloon, volunteer):
-    event_id = int(event)
-    balloon_id = int(balloon)
-    volunteer_id = volunteer
-    db = DB()
-    balloon = db.balloon(balloon_id, lock=True)
+@arguments(None, event=int, balloon=int, volunteer=str)
+def action_balloon_take(db, *, event, balloon, volunteer):
+    balloon = db.balloon(balloon, lock=True)
     if balloon is None:
         return abort(404)
     state = int (balloon[4])
     if state >= 100:
-        content = design.error(
-            message=lang.lang['error_ball_taken'],
-            back=config.base_url + '/event' + str(event_id)
-        )
-        return render_template(
-            'template.html',
+        return page(
             title=lang.lang['error'],
-            base=config.base_url,
-            content=content
+            content=design.error(
+                message=lang.lang['error_ball_taken'],
+                back=make_url("event%d" % event)
+            )
         )
-    db.balloon_take(balloon_id, volunteer_id)
-    db.close(commit=True)
-    return redirect(config.base_url + '/event' + str(event_id))
-
-
-volunteer_cache = {}
-def volunteer_get(volunteer_id):
-    if volunteer_id in volunteer_cache:
-        return volunteer_cache[volunteer_id]
-    if volunteer_id.startswith('vk:'):
-        vk_id = int (volunteer_id[3:])
-        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
-        res = json.loads(urllib.request.urlopen(api_url).read().decode())
-        if 'error' in res:
-            return None
-        res = res['response'][0]
-        volunteer_cache[volunteer_id] = (
-            "%s %s" % (res['first_name'], res['last_name']),
-            "https://vk.com/id%s" % res['uid']
-        )
-        return volunteer_cache[volunteer_id]
-    return None
+    db.balloon_take(balloon, volunteer)
+    return redirect(make_url("event%d" % event))
 
 
 @ball.route('/action_mk2', methods=['POST'])
@@ -133,10 +101,32 @@ def do_action_mk2():
     except KeyError:
         print ("unknown action method: '%s'" % request.form['method'])
         return abort(404)
-    return callback(**{
+    db = DB()
+    result = callback(db, **{
         k: v for k, v in request.form.items()
         if k not in ['method', 'token']
     })
+    db.close(commit=True)
+    return result
+
+
+volunteer_cache = {}
+def volunteer_get(volunteer_id):
+    if volunteer_id in volunteer_cache:
+        return volunteer_cache[volunteer_id]
+    if volunteer_id.startswith('vk:'):
+        vk_id = int (volunteer_id[3:])
+        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
+        res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        if 'error' in res:
+            return None
+        res = res['response'][0]
+        volunteer_cache[volunteer_id] = (
+            "%s %s" % (res['first_name'], res['last_name']),
+            "https://vk.com/id%s" % res['uid']
+        )
+        return volunteer_cache[volunteer_id]
+    return None
 
 
 @ball.route('/')
@@ -352,8 +342,7 @@ def event(event_id):
         'state': e[2],
         'url': e[3]}
     event_html = ''
-    # event_html += design.monitor_link(url=event['url'])
-    event_html += design.monitor_link(url=config.base_url + '/event%d/monitor' % event_id)
+    event_html += design.standings_link(url=make_url("event%d/standings" % event_id))
     content += event_html
 
     problems = db.problems(event_id)
@@ -408,10 +397,11 @@ def event(event_id):
                 x = design.fts(text=lang.lang['event_queue_problem'])
             else:
                 x = design.fts_no(text=lang.lang['event_queue_problem'])
-            if b.team_id in first_solved and first_solved[b.team_id] == b.id:
-                y = design.fts(text=lang.lang['event_queue_team'])
-            else:
-                y = design.fts_no(text=lang.lang['event_queue_team'])
+            # FTS for team is confusing, disable it for now
+            #if b.team_id in first_solved and first_solved[b.team_id] == b.id:
+            #    y = design.fts(text=lang.lang['event_queue_team'])
+            #else:
+            y = design.fts_no(text=lang.lang['event_queue_team'])
             balloons_html.append(design.balloon(
                 color_token=balloons_text,
                 color=p['color'],
@@ -455,8 +445,8 @@ def event(event_id):
         content=content)
 
 
-@ball.route('/event<int:event_id>/monitor')
-def event_monitor(event_id):
+@ball.route('/event<int:event_id>/standings')
+def event_standings(event_id):
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
         return redirect(config.base_url)
@@ -471,12 +461,74 @@ def event_monitor(event_id):
         'state': e[2],
         'url': e[3]
     }
-    content = 'TODO'
+    problems_header = []
+    problems = db.problems(event_id)
+    for p in problems:
+        problems_header.append(design.standings_problem(
+            name_full=p['name'],
+            name_short=p['letter']
+        ))
+        try:
+            p['fts'] = db.fts(event_id, problem_id=p['id'])
+        except KeyError:
+            pass
+
+    oks = {}
+    for b in db.balloons(event_id):
+        oks[(b['team_id'], b['problem_id'])] = (b['id'], b['time_local'])
+
+    standings_header = ''.join(problems_header)
+    teams = []
+    for t in db.teams(event_id):
+        score = 0
+        penalty = 0
+        team_row = []
+        for p in problems:
+            key = (t['id'], p['id'])
+            print (key, oks.get(key, None))
+            if key in oks:
+                ok_id, time = oks[key]
+                team_row.append(design.standings_yes(
+                    time=int(time),
+                    fts=ok_id == p['fts']
+                ))
+                score += 1
+                penalty += int(time / 60) # TODO: incorrect: does not assume previous attempts
+            else:
+                team_row.append(design.standings_nope())
+        teams.append ([t['long_name'], ''.join(team_row), score, penalty, True, False])
+
+    teams = list(sorted(teams, key=lambda t: (-t[2], t[3])))
+    for i in range(1, len(teams)):
+        teams[i][4] = not teams[i - 1][4]
+    for i in range(len(teams) - 2, -1, -1):
+        if teams[i][2] == teams[i + 1][2]:
+            teams[i][5] = teams[i + 1][5]
+        else:
+            teams[i][5] = not teams[i + 1][5]
+
+    teams_list = []
+    for name, problems, score, penalty, even, block_even in teams:
+        teams_list.append(design.standings_team(
+            row=even,
+            block=block_even,
+            name=name,
+            problems=problems,
+            rank=1,
+            score=score,
+            penalty=penalty
+        ))
+        even = not even
+    standings_body = ''.join(teams_list)
+    content = design.warning(
+        message=lang.lang['warning_no_penalty_attempts']
+    ) + design.standings_table(
+        header=standings_header,
+        body=standings_body
+    )
     db.close()
-    return render_template(
-        'template.html',
+    return page(
         title=event['name'],
-        base=config.base_url,
         content=content
     )
 
