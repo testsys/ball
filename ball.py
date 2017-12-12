@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from flask import Flask, abort, render_template, request, make_response, redirect
-import json, urllib
+import json, sys, urllib
 import logging
 
 from miscellaneous import *
@@ -55,7 +55,7 @@ def action_balloon_done(db, *, event, balloon, volunteer):
     db.balloon_done(balloon, volunteer)
     return redirect(make_url("event%d" % event))
 
-@arguments(None, event=int, balllon=int)
+@arguments(None, event=int, balloon=int)
 def action_balloon_drop(db, *, event, balloon):
     db.balloon_drop(balloon)
     return redirect(make_url("event%d" % event))
@@ -74,7 +74,7 @@ def action_balloon_take(db, *, event, balloon, volunteer):
                 back=make_url("event%d" % event)
             )
         )
-    db.balloon_take(balloon, volunteer)
+    db.balloon_take(balloon[0], volunteer)
     return redirect(make_url("event%d" % event))
 
 
@@ -86,7 +86,7 @@ def do_action_mk2():
     token = request.form['token']
     token_cookie = request.cookies.get('ball_token')
     if token != token_cookie or len(token) < 10:
-        print ("token mismatch: %s vs %s" % (repr (token), repr (token_cookie)))
+        print ("token mismatch: %s vs %s" % (repr (token), repr (token_cookie)), file=sys.stderr)
         return abort(403);
     try:
         callback = {
@@ -152,13 +152,17 @@ def index():
             'method': 'event_add',
         })
         content += design.link(url=config.base_url + '/volunteers', label=lang.lang['access_manage'])
-    return render_template(
+    response = make_response(render_template(
         'template.html',
         title=lang.lang['index_title'],
         auth=auth_html,
         base=config.base_url,
         content=content
-    )
+    ))
+    if user_ok:
+        token = auth.create_token(user_id, add_random=True)
+        response.set_cookie('ball_token', token)
+    return response
 
 
 @ball.route('/volunteers')
@@ -438,11 +442,15 @@ def event(event_id):
     )
 
     db.close()
-    return render_template(
+    response = make_response(render_template(
         'template.html',
         title=event['name'],
         base=config.base_url,
-        content=content)
+        content=content
+    ))
+    token = auth.create_token(user_id, add_random=True)
+    response.set_cookie('ball_token', token)
+    return response
 
 
 @ball.route('/event<int:event_id>/standings')
