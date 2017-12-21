@@ -28,21 +28,21 @@ def check(user_id, token):
 
 
 class vk:
-    url = \
-        'https://oauth.vk.com/authorize?' + \
-        'client_id=' + config.vk_app_id + \
-        '&display=page' + \
-        '&response_type=code' + \
-        '&redirect_uri=' + config.base_url_global + '/auth/vk/done'
+    url = 'https://oauth.vk.com/authorize?' + urllib.parse.urlencode({
+        'client_id': config.vk_app_id,
+        'display': 'page',
+        'response_type': 'code',
+        'redirect_uri': config.base_url_global + '/auth/vk/done'
+    })
 
     @classmethod
     def do(cls, code):
-        vk_oauth_url = (
-            'https://oauth.vk.com/access_token?client_id=' +
-            config.vk_app_id + '&client_secret=' + config.vk_client_secret +
-            '&redirect_uri=' + config.base_url_global + '/auth/vk/done&code=' +
-            code
-        )
+        vk_oauth_url = 'https://oauth.vk.com/access_token?' + urllib.parse.urlencode({
+            'client_id': config.vk_app_id,
+            'client_secret': config.vk_client_secret,
+            'redirect_uri': config.base_url_global + '/auth/vk/done',
+            'code': code
+        })
         res = json.loads(urllib.request.urlopen(vk_oauth_url).read().decode())
         if 'error' in res:
             raise AuthentificationError(str(res['error_description']))
@@ -50,12 +50,12 @@ class vk:
 
 
 class google:
-    url = \
-        'https://accounts.google.com/o/oauth2/v2/auth?' + \
-        'client_id=' + config.google_client_id + \
-        '&response_type=code' + \
-        '&scope=https://www.googleapis.com/auth/plus.login' + \
-        '&redirect_uri=' + config.base_url_global + '/auth/google/done'
+    url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode({
+        'client_id': config.google_client_id,
+        'response_type': 'code',
+        'scope': 'https://www.googleapis.com/auth/plus.login',
+        'redirect_uri': config.base_url_global + '/auth/google/done'
+    })
 
     @classmethod
     def do(cls, code):
@@ -65,7 +65,8 @@ class google:
             'client_secret': config.google_client_secret,
             'redirect_uri': config.base_url_global + '/auth/google/done',
             'code': code,
-            'grant_type': 'authorization_code'})
+            'grant_type': 'authorization_code'
+        })
         response = urllib.request.urlopen(
             google_oauth_base,
             google_oauth_data.encode('utf-8'))

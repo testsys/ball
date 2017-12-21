@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from flask import Flask, abort, render_template, request, make_response, redirect
+from flask import Flask, abort, render_template, request, make_response, redirect, url_for
 import json, sys, urllib
 import logging
 
@@ -24,41 +24,38 @@ def page(*, title, content):
         content=content
     )
 
-def make_url(suffix=""):
-    return config.base_url + "/" + suffix
-
 
 # actions: methods that modify something
 
 @arguments(None, id=int)
 def action_access_grant(db, *, id):
     db.volunteer_access(id, True)
-    return redirect(make_url('volunteers'))
+    return redirect(url_for('volunteers'))
 
 @arguments(None, id=int)
 def action_access_refuse(db, *, id):
     db.volunteer_access(id, False)
-    return redirect(make_url('volunteers'))
+    return redirect(url_for('volunteers'))
 
 @arguments(None, url=str)
 def action_event_add(db, *, url):
     db.event_add(1, url)
-    return redirect(config.base_url)
+    return redirect(url_for('index'))
 
 @arguments(None, problem=int, value=str)
 def action_color_set(db, *, problem, value):
     db.problem_color(problem, value)
-    return redirect(make_url("problem%d" % problem))
+    return redirect(url_for("problem", problem=problem))
 
 @arguments(None, event=int, balloon=int, volunteer=str)
 def action_balloon_done(db, *, event, balloon, volunteer):
     db.balloon_done(balloon, volunteer)
-    return redirect(make_url("event%d" % event))
+    return redirect(url_for("event", event=event))
 
 @arguments(None, event=int, balloon=int)
 def action_balloon_drop(db, *, event, balloon):
     db.balloon_drop(balloon)
-    return redirect(make_url("event%d" % event))
+    return redirect(url_for("event", event=event))
 
 @arguments(None, event=int, balloon=int, volunteer=str)
 def action_balloon_take(db, *, event, balloon, volunteer):
@@ -71,18 +68,18 @@ def action_balloon_take(db, *, event, balloon, volunteer):
             title=lang.lang['error'],
             content=design.error(
                 message=lang.lang['error_ball_taken'],
-                back=make_url("event%d" % event)
+                back=url_for("event", event=event)
             )
         )
     db.balloon_take(balloon[0], volunteer)
-    return redirect(make_url("event%d" % event))
+    return redirect(url_for("event", event=event))
 
 
 @ball.route('/action_mk2', methods=['POST'])
 def do_action_mk2():
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
-        return redirect(config.base_url, code=307)
+        return redirect(url_for('index'), code=307)
     token = request.form['token']
     token_cookie = request.cookies.get('ball_token')
     if token != token_cookie or len(token) < 10:
@@ -116,7 +113,8 @@ def volunteer_get(volunteer_id):
         return volunteer_cache[volunteer_id]
     if volunteer_id.startswith('vk:'):
         vk_id = int (volunteer_id[3:])
-        api_url = "https://api.vk.com/method/users.get?user_ids=%d" % vk_id
+        api_url = "https://api.vk.com/method/users.get?" + \
+            urllib.parse.urlencode({'user_ids': vk_id})
         res = json.loads(urllib.request.urlopen(api_url).read().decode())
         if 'error' in res:
             return None
@@ -144,14 +142,14 @@ def index():
         event_link = design.event_nolink
     for e in events:
         if e[1]:
-            content += event_link(url=config.base_url + '/event' + str(e[0]), name=e[1])
+            content += event_link(url=url_for('event', event=e[0]), name=e[1])
         else:
             content += design.event_nolink(name=e[3])
     if user_ok:
         content += design.action_form_event(arguments={
             'method': 'event_add',
         })
-        content += design.link(url=config.base_url + '/volunteers', label=lang.lang['access_manage'])
+        content += design.link(url=url_for('volunteers'), label=lang.lang['access_manage'])
     response = make_response(render_template(
         'template.html',
         title=lang.lang['index_title'],
@@ -169,7 +167,7 @@ def index():
 def volunteers():
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
-        return redirect(config.base_url)
+        return redirect(url_for('index'))
     volunteers = []
     for id in config.allowed_users:
         volunteer = volunteer_get(id)
@@ -239,12 +237,12 @@ def volunteers():
     return response
 
 
-@ball.route('/problem<int:problem_id>')
-def problem(problem_id):
+@ball.route('/problem<int:problem>')
+def problem(problem):
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
-        return redirect(config.base_url)
-    problem_id = int(problem_id)
+        return redirect(url_for('index'))
+    problem_id = int(problem)
     content = ''
     db = DB()
     problems = [db.problem(problem_id)]
@@ -327,12 +325,12 @@ def get_state_str_queue(event_id, b, *, user_id):
     return state_str
 
 
-@ball.route('/event<int:event_id>')
-def event(event_id):
+@ball.route('/event<int:event>')
+def event(event):
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
-        return redirect(config.base_url)
-    event_id = int(event_id)
+        return redirect(url_for('index'))
+    event_id = int(event)
     content = ''
     db = DB()
     try:
@@ -340,13 +338,13 @@ def event(event_id):
     except KeyError:
         e = None
     if e is None:
-        return redirect(config.base_url)
+        return redirect(url_for('index'))
     event = {
         'name': e[1],
         'state': e[2],
         'url': e[3]}
     event_html = ''
-    event_html += design.standings_link(url=make_url("event%d/standings" % event_id))
+    event_html += design.standings_link(url=url_for('event_standings', event=event_id))
     content += event_html
 
     problems = db.problems(event_id)
@@ -359,7 +357,7 @@ def event(event_id):
             design.problem(
                 color_token='&nbsp;' if p['color'] else '?',
                 color=p['color'],
-                url=config.base_url + '/problem' + str(p['id']),
+                url=url_for('problem', problem=p['id']),
                 letter=p['letter'],
                 count=str(p['cnt'])
             )
@@ -453,17 +451,17 @@ def event(event_id):
     return response
 
 
-@ball.route('/event<int:event_id>/standings')
-def event_standings(event_id):
+@ball.route('/event<int:event>/standings')
+def event_standings(event):
     user_id, auth_html, user_ok = check_auth(request)
     if not user_ok:
-        return redirect(config.base_url)
-    event_id = int(event_id)
+        return redirect(url_for('index'))
+    event_id = int(event)
     db = DB()
     try:
         e = db.event(event_id)
     except KeyError:
-        return redirect(config.base_url)
+        return redirect(url_for('index'))
     event = {
         'name': e[1],
         'state': e[2],
@@ -546,7 +544,7 @@ def event_standings(event_id):
 
 user_cache = {}
 def check_auth(request):
-    auth_html = design.auth(url=config.base_url + 'auth')
+    auth_html = design.auth(url=url_for('method_auth'))
     try:
         user_id = request.cookies.get('ball_user_id')
         auth_token = request.cookies.get('ball_auth_token')
@@ -570,8 +568,8 @@ def check_auth(request):
 @ball.route('/auth')
 def method_auth():
     user_id, auth_html, user_ok= check_auth(request)
-    content = design.auth_link(url=config.base_url + '/auth/vk/start', label='VK') + \
-        design.auth_link(url=config.base_url + '/auth/google/start', label='Google')
+    content = design.auth_link(url=url_for('auth_vk_start'), label='VK') + \
+        design.auth_link(url=url_for('auth_google_start'), label='Google')
     return render_template(
         'template.html',
         title=lang.lang['auth'],
@@ -601,7 +599,7 @@ def auth_vk_done():
             base=config.base_url,
             content=error_content)
     auth_token = auth.create_token(user_id)
-    resp = make_response(redirect(config.base_url))
+    resp = make_response(redirect(url_for('index')))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
     return resp
@@ -627,7 +625,7 @@ def auth_google_done():
                                base=config.base_url,
                                content=error_content)
     auth_token = auth.create_token(user_id)
-    resp = make_response(redirect(config.base_url))
+    resp = make_response(redirect(url_for('index')))
     resp.set_cookie('ball_auth_token', auth_token)
     resp.set_cookie('ball_user_id', user_id)
     return resp
