@@ -115,7 +115,10 @@ def volunteer_get(volunteer_id):
         vk_id = int (volunteer_id[3:])
         api_url = "https://api.vk.com/method/users.get?" + \
             urllib.parse.urlencode({'user_ids': vk_id})
-        res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        try:
+            res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        except urllib.error.HTTPError:
+            return None
         if 'error' in res:
             return None
         res = res['response'][0]
@@ -123,6 +126,19 @@ def volunteer_get(volunteer_id):
             "%s %s" % (res['first_name'], res['last_name']),
             "https://vk.com/id%s" % res['uid']
         )
+        return volunteer_cache[volunteer_id]
+    if volunteer_id.startswith('google:'):
+        google_id = int (volunteer_id[7:])
+        api_url = "https://www.googleapis.com/plus/v1/people/%d?key=%s" % (
+            google_id, config.google_key
+        )
+        try:
+            res = json.loads(urllib.request.urlopen(api_url).read().decode())
+        except urllib.error.HTTPError:
+            return None
+        if 'error' in res:
+            return None
+        volunteer_cache[volunteer_id] = (res['displayName'], res['url'])
         return volunteer_cache[volunteer_id]
     return None
 
